@@ -86,6 +86,7 @@ typedef struct RsaKey {
     word32 tmpLen;
     byte   tmpIsAlloc;
 #ifdef WC_RSA_BLINDING
+    mp_int b, bi;
     WC_RNG* rng;                              /* for PrivateDecrypt blinding */
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT

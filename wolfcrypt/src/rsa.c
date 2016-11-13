@@ -220,6 +220,10 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
         key->d.dp = key->p.dp  = 0; /* private alloc parts */
         key->q.dp = key->dP.dp = 0;
         key->u.dp = key->dQ.dp = 0;
+#ifdef WC_RSA_BLINDING
+        key->b.dp = key->bi.dp = NULL;
+        key->b.used = 0; key->b.alloc = 0;
+#endif
     #else
         mp_init(&key->n);
         mp_init(&key->e);
@@ -229,6 +233,10 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
         mp_init(&key->dP);
         mp_init(&key->dQ);
         mp_init(&key->u);
+#ifdef WC_RSA_BLINDING
+        mp_init(&key->b);
+        mp_init(&key->bi);
+#endif
     #endif /* USE_FAST_MATH */
     }
 
@@ -259,6 +267,10 @@ int wc_FreeRsaKey(RsaKey* key)
 #endif
     {
         if (key->type == RSA_PRIVATE) {
+#ifdef WC_RSA_BLINDING
+            mp_forcezero(&key->bi);
+            mp_forcezero(&key->b);
+#endif
             mp_forcezero(&key->u);
             mp_forcezero(&key->dQ);
             mp_forcezero(&key->dP);
@@ -911,9 +923,6 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
     mp_int tmp;
-#ifdef WC_RSA_BLINDING
-    mp_int rnd, rndi;
-#endif
     int    ret = 0;
     word32 keyLen, len;
 
@@ -921,15 +930,6 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
     if (mp_init(&tmp) != MP_OKAY)
         return MP_INIT_E;
-
-#ifdef WC_RSA_BLINDING
-    if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT) {
-        if (mp_init_multi(&rnd, &rndi, NULL, NULL, NULL, NULL) != MP_OKAY) {
-            mp_clear(&tmp);
-            return MP_INIT_E;
-        }
-    }
-#endif
 
     if (mp_read_unsigned_bin(&tmp, (byte*)in, inLen) != MP_OKAY)
         ERROR_OUT(MP_READ_E);
@@ -939,21 +939,31 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     case RSA_PRIVATE_ENCRYPT:
     {
     #ifdef WC_RSA_BLINDING
-        /* blind */
-        ret = mp_rand(&rnd, get_digit_count(&key->n), rng);
-        if (ret != MP_OKAY)
-            ERROR_OUT(ret);
+        if (key->b.used == 0) {
+            /* blind */
+            ret = mp_rand(&key->b, get_digit_count(&key->n), rng);
+            if (ret != MP_OKAY)
+                ERROR_OUT(ret);
 
-        /* rndi = 1/rnd mod n */
-        if (mp_invmod(&rnd, &key->n, &rndi) != MP_OKAY)
-            ERROR_OUT(MP_INVMOD_E);
+            /* rndi = 1/rnd mod n */
+            if (mp_invmod(&key->b, &key->n, &key->bi) != MP_OKAY)
+               ERROR_OUT(MP_INVMOD_E);
 
-        /* rnd = rnd^e */
-        if (mp_exptmod(&rnd, &key->e, &key->n, &rnd) != MP_OKAY)
-            ERROR_OUT(MP_EXPTMOD_E);
+            /* rnd = rnd^e */
+            if (mp_exptmod(&key->b, &key->e, &key->n, &key->b) != MP_OKAY)
+                ERROR_OUT(MP_EXPTMOD_E);
+        }
+        else {
+            ret = mp_sqrmod(&key->b, &key->n, &key->b);
+            if (ret != MP_OKAY)
+                ERROR_OUT(MP_EXPTMOD_E);
+            ret = mp_sqrmod(&key->bi, &key->n, &key->bi);
+            if (ret != MP_OKAY)
+                ERROR_OUT(MP_EXPTMOD_E);
+        }
 
         /* tmp = tmp*rnd mod n */
-        if (mp_mulmod(&tmp, &rnd, &key->n, &tmp) != MP_OKAY)
+        if (mp_mulmod(&tmp, &key->b, &key->n, &tmp) != MP_OKAY)
             ERROR_OUT(MP_MULMOD_E);
     #endif /* WC_RSA_BLINGING */
 
@@ -1009,7 +1019,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
     #ifdef WC_RSA_BLINDING
         /* unblind */
-        if (mp_mulmod(&tmp, &rndi, &key->n, &tmp) != MP_OKAY)
+        if (mp_mulmod(&tmp, &key->bi, &key->n, &tmp) != MP_OKAY)
             ERROR_OUT(MP_MULMOD_E);
     #endif   /* WC_RSA_BLINDING */
 
@@ -1045,12 +1055,6 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
 done:
     mp_clear(&tmp);
-#ifdef WC_RSA_BLINDING
-    if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT) {
-        mp_clear(&rndi);
-        mp_clear(&rnd);
-    }
-#endif
     if (ret == MP_EXPTMOD_E) {
         WOLFSSL_MSG("RSA_FUNCTION MP_EXPTMOD_E: memory/config problem");
     }
@@ -1694,6 +1698,10 @@ static int InitAsyncRsaKey(RsaKey* key)
     XMEMSET(&key->dP, 0, sizeof(key->dP));
     XMEMSET(&key->dQ, 0, sizeof(key->dQ));
     XMEMSET(&key->u,  0, sizeof(key->u));
+#ifdef WC_RSA_BLINDING
+    XMEMSET(&key->b,  0, sizeof(key->b));
+    XMEMSET(&key->bi,  0, sizeof(key->bi));
+#endif
 
     return 0;
 }
@@ -1738,6 +1746,20 @@ static int FreeAsyncRsaKey(RsaKey* key)
             XFREE(key->u.dpraw,  key->heap, DYNAMIC_TYPE_ASYNC_RSA);
         #endif
         }
+#ifdef WC_RSA_BLINDING
+        if (key->b.dpraw) {
+            ForceZero(key->b.dpraw, key->b.used);
+        #ifndef USE_FAST_MATH
+            XFREE(key->b.dpraw,  key->heap, DYNAMIC_TYPE_ASYNC_RSA);
+        #endif
+        }
+        if (key->bi.dpraw) {
+            ForceZero(key->bi.dpraw, key->bi.used);
+        #ifndef USE_FAST_MATH
+            XFREE(key->bi.dpraw,  key->heap, DYNAMIC_TYPE_ASYNC_RSA);
+        #endif
+        }
+#endif
     }
 
 #ifndef USE_FAST_MATH
