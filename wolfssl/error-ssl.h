@@ -153,12 +153,19 @@ enum wolfSSL_ErrorCodes {
     DTLS_POOL_SZ_E               = -415,   /* exceeded DTLS pool size */
     DECODE_E                     = -416,   /* decode handshake message error */
     HTTP_TIMEOUT                 = -417,   /* HTTP timeout for OCSP or CRL req */
+    INVALID_CERT_CTX_E           = -418,   /* TLS cert ctx not matching */
+    BAD_KEY_SHARE_DATA           = -419,   /* Key Share data invalid */
+    MISSING_HANDSHAKE_DATA       = -420,   /* Handshake message missing data */
+    BAD_BINDER                   = -421,   /* Binder does not match */
+    EXT_NOT_ALLOWED              = -422,   /* Extension not allowed in msg */
+    INVALID_PARAMETER            = -423,   /* Security parameter invalid */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE            = -500,        /* unsupported cipher suite */
     MATCH_SUITE_ERROR            = -501,        /* can't match cipher suite */
-    COMPRESSION_ERROR            = -502         /* compression mismatch */
+    COMPRESSION_ERROR            = -502,        /* compression mismatch */
+    KEY_SHARE_ERROR              = -503         /* key share mismatch */
     /* end negotiation parameter errors only 10 for now */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
