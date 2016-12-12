@@ -180,6 +180,25 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv, word32* privSz,
     return (ret != 0) ? ret : GeneratePublic(key, priv, *privSz, pub, pubSz);
 }
 
+#ifdef WOLFSSL_VALIDATE_DH_IMPORT
+static int wc_ret_check_pubkey(DhKey* key, mp_int* y, mp_int* t)
+{
+    int ret;
+
+    ret = mp_mod(y, &key->p, t);
+
+    if (ret == 0 && (mp_iszero(t) || mp_isone(t)))
+        ret = PUBLIC_KEY_E;
+
+    if (ret == 0) ret = mp_add_d(t, 1, t);
+
+    if (ret == 0 && mp_cmp(t, &key->p) == 0)
+        ret = PUBLIC_KEY_E;
+
+    return ret;
+}
+#endif
+
 int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
             word32 privSz, const byte* otherPub, word32 pubSz)
 {
@@ -197,6 +216,10 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 
     if (ret == 0 && mp_read_unsigned_bin(&y, otherPub, pubSz) != MP_OKAY)
         ret = MP_READ_E;
+
+#ifdef WOLFSSL_VALIDATE_DH_IMPORT
+    if (ret == 0) ret = wc_ret_check_pubkey(key, &y, &z);
+#endif
 
     if (ret == 0 && mp_exptmod(&y, &x, &key->p, &z) != MP_OKAY)
         ret = MP_EXPTMOD_E;

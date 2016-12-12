@@ -6340,6 +6340,51 @@ int dh_test(void)
     if (XMEMCMP(agree, agree2, agreeSz))
         return -56;
 
+#ifdef WOLFSSL_VALIDATE_DH_IMPORT
+    {
+        byte pub0[1] = { 0 };
+        byte pub1[1] = { 1 };
+        byte mod[256];
+        int len;
+
+        ret =  wc_DhAgree(&key, agree, &agreeSz, priv, privSz, pub0, 0);
+        if (ret != PUBLIC_KEY_E)
+            return -57;
+
+        ret = wc_DhAgree(&key, agree, &agreeSz, priv, privSz,
+                         pub0, sizeof(pub0));
+        if (ret != PUBLIC_KEY_E)
+            return -58;
+
+        ret = wc_DhAgree(&key, agree, &agreeSz, priv, privSz,
+                         pub1, sizeof(pub1));
+        if (ret != PUBLIC_KEY_E)
+            return -60;
+
+    #ifdef USE_CERT_BUFFERS_1024
+        len = 1024 / 8;
+        XMEMCPY(mod, tmp + 7, len);
+    #elif defined(USE_CERT_BUFFERS_2048)
+        len = 2048 / 8;
+        XMEMCPY(mod, tmp + 9, len);
+    #elif defined(NO_ASN)
+        len = sizeof(dh_p);
+        XMEMCPY(mod, dh_p, len);
+    #else
+        len = 2048 / 8;
+        XMEMCPY(mod, tmp + 9, len);
+    #endif
+        ret = wc_DhAgree(&key, agree, &agreeSz, priv, privSz, mod, len);
+        if (ret != PUBLIC_KEY_E)
+            return -59;
+
+        mod[len-1]--;
+        ret = wc_DhAgree(&key, agree, &agreeSz, priv, privSz, mod, len);
+        if (ret != PUBLIC_KEY_E)
+            return -61;
+    }
+#endif
+
     wc_FreeDhKey(&key);
     wc_FreeDhKey(&key2);
     wc_FreeRng(&rng);
