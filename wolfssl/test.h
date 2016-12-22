@@ -514,6 +514,12 @@ static INLINE void showPeer(WOLFSSL* ssl)
 {
 
     WOLFSSL_CIPHER* cipher;
+#ifdef HAVE_ECC
+    const char *name;
+#endif
+#ifndef NO_DH
+    int bits;
+#endif
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
     if (peer)
@@ -534,6 +540,14 @@ static INLINE void showPeer(WOLFSSL* ssl)
             wolfSSL_CIPHER_get_name(cipher));
 #else
     printf("SSL cipher suite is %s\n", wolfSSL_CIPHER_get_name(cipher));
+#endif
+#ifdef HAVE_ECC
+    if ((name = wolfSSL_get_curve_name(ssl)) != NULL)
+        printf("SSL curve name is %s\n", name);
+#endif
+#ifndef NO_DH
+    if ((bits = wolfSSL_GetDhKey_Sz(ssl)) > 0)
+        printf("SSL DH size is %d bits\n", bits);
 #endif
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)

@@ -42,12 +42,14 @@
 #endif
 
 
+#if (defined(DEBUG_WOLFSSL) || defined(OPENSSL_ERR_ONE)) && \
+    (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
+volatile char          wc_last_error_file[80];
+volatile unsigned long wc_last_error_line;
+volatile unsigned long wc_last_error;
+#endif
+
 #ifdef DEBUG_WOLFSSL
-    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-    volatile char          wc_last_error_file[80];
-    volatile unsigned long wc_last_error_line;
-    volatile unsigned long wc_last_error;
-    #endif
 
 /* Set these to default values initially. */
 static wolfSSL_Logging_cb log_function = 0;

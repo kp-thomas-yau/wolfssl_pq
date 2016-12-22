@@ -57,6 +57,7 @@ struct WOLFSSL_EC_POINT {
 struct WOLFSSL_EC_GROUP {
     int curve_idx; /* index of curve, used by WolfSSL as reference */
     int curve_nid; /* NID of curve, used by OpenSSL/OpenSSH as reference */
+    int curve_oid; /* OID of curve, used by OpenSSL/OpenSSH as reference */
 };
 
 struct WOLFSSL_EC_KEY {

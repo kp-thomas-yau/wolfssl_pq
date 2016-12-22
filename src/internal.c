@@ -1474,6 +1474,15 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     #endif
     FreeDer(&ctx->certChain);
     wolfSSL_CertManagerFree(ctx->cm);
+    #ifdef OPENSSL_EXTRA
+        while (ctx->ca_names != NULL) {
+            WOLFSSL_STACK *next = ctx->ca_names->next;
+            wolfSSL_X509_NAME_free(ctx->ca_names->data.name);
+            XFREE(ctx->ca_names->data.name, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(ctx->ca_names, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->ca_names = next;
+        }
+    #endif
 #endif
 
 #ifdef HAVE_TLS_EXTENSIONS
@@ -3096,8 +3105,12 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
         keySz = peer->dp->size;
     }
 
-    /* TODO: Implement _ex version here */
-    ret = wc_ecc_make_key(ssl->rng, keySz, key);
+    if (ssl->ecdhCurveOID > 0) {
+        ret = wc_ecc_make_key_ex(ssl->rng, keySz, key,
+                 wc_ecc_get_oid(ssl->ecdhCurveOID, NULL, NULL));
+    }
+    else
+        ret = wc_ecc_make_key(ssl->rng, keySz, key);
 
     /* Handle async pending response */
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -3225,17 +3238,19 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #ifdef HAVE_ECC
     ssl->eccTempKeySz = ctx->eccTempKeySz;
     ssl->pkCurveOID = ctx->pkCurveOID;
+    ssl->ecdhCurveOID = ctx->ecdhCurveOID;
 #endif
 
+#ifdef OPENSSL_EXTRA
+    ssl->options.mask = ctx->mask;
+#endif
     ssl->timeout = ctx->timeout;
     ssl->verifyCallback    = ctx->verifyCallback;
     ssl->options.side      = ctx->method->side;
     ssl->options.downgrade    = ctx->method->downgrade;
     ssl->options.minDowngrade = ctx->minDowngrade;
 
-    if (ssl->options.side == WOLFSSL_SERVER_END)
-        ssl->options.haveDH = ctx->haveDH;
-
+    ssl->options.haveDH        = ctx->haveDH;
     ssl->options.haveNTRU      = ctx->haveNTRU;
     ssl->options.haveECDSAsig  = ctx->haveECDSAsig;
     ssl->options.haveECC       = ctx->haveECC;
@@ -3262,6 +3277,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
     ssl->options.sessionCacheFlushOff = ctx->sessionCacheFlushOff;
+#ifdef OPENSSL_EXT_CACHE
+    ssl->options.internalCacheOff     = ctx->internalCacheOff;
+#endif
 
     ssl->options.verifyPeer     = ctx->verifyPeer;
     ssl->options.verifyNone     = ctx->verifyNone;
@@ -3274,10 +3292,8 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->options.groupMessages = ctx->groupMessages;
 
 #ifndef NO_DH
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        ssl->buffers.serverDH_P = ctx->serverDH_P;
-        ssl->buffers.serverDH_G = ctx->serverDH_G;
-    }
+    ssl->buffers.serverDH_P = ctx->serverDH_P;
+    ssl->buffers.serverDH_G = ctx->serverDH_G;
 #endif
 
 #ifndef NO_CERTS
@@ -6217,6 +6233,33 @@ static int CheckAltNames(DecodedCert* dCert, char* domain)
 }
 
 
+#ifdef OPENSSL_EXTRA
+/* Check the domain name matches the subject alternative name or the subject
+ * name.
+ *
+ * dcert          Decoded certificate.
+ * domainName     The domain name.
+ * domainNameLen  The length of the domain name.
+ * returns DOMAIN_NAME_MISMATCH when no match found and 0 on success.
+ */
+int CheckHostName(DecodedCert* dCert, char *domainName, int domainNameLen)
+{
+    /* Assume name is NUL terminated. */
+    (void)domainNameLen;
+
+    if (CheckAltNames(dCert, domainName) == 0) {
+        WOLFSSL_MSG("DomainName match on alt names failed");
+        if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen,
+                            domainName) == 0) {
+            WOLFSSL_MSG("DomainName match on common name failed too");
+            return DOMAIN_NAME_MISMATCH;
+        }
+    }
+
+    return 0;
+}
+#endif
+
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
 
 /* Copy parts X509 needs from Decoded cert, 0 on success */
@@ -7069,7 +7112,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #else
                 store->current_cert = NULL;
 #endif
-#if defined(HAVE_FORTRESS) || defined(HAVE_STUNNEL)
+#if defined(HAVE_EX_DATA) || defined(HAVE_FORTRESS)
                 store->ex_data = ssl;
 #endif
                 ok = ssl->verifyCallback(0, store);
@@ -14440,6 +14483,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     if ((curveOid = CheckCurveId(b)) < 0) {
                         ERROR_OUT(ECC_CURVE_ERROR, exit_dske);
                     }
+                    ssl->ecdhCurveOID = curveOid;
 
                     length = input[idx++];
                     if ((idx - begin) + length > size) {
@@ -17011,6 +17055,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             idx += RAN_LEN;
             output[idx++] = sessIdSz;
             XMEMCPY(ssl->arrays->sessionID, output + idx, sessIdSz);
+            ssl->arrays->sessionIDSz = sessIdSz;
         }
         else {
             /* If resuming, use info from SSL */

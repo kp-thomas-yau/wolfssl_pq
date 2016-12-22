@@ -122,8 +122,6 @@ typedef struct CertName {
     char email[CTC_NAME_SIZE];  /* !!!! email has to be last !!!! */
 } CertName;
 
-typedef struct WOLFSSL_ASN1_OBJECT WOLFSSL_ASN1_OBJECT;
-
 /* for user to fill for certificate generation */
 typedef struct Cert {
     int      version;                   /* x509 version  */
@@ -241,7 +239,8 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     #endif /* WOLFSSL_PEMPUBKEY_TODER_DEFINED */
 #endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
 
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA)
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || !defined(NO_DSA) \
+                             || defined(OPENSSL_EXTRA)
     WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, int type);
     WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
@@ -276,9 +275,6 @@ WOLFSSL_API int wc_GetCTC_HashOID(int type);
     rc = wc_GetTime(&lTime, (word32)sizeof(lTime));
 */
 WOLFSSL_API int wc_GetTime(void* timePtr, word32 timeSize);
-
-WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void);
-WOLFSSL_API void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj);
 
 #ifdef __cplusplus
     } /* extern "C" */

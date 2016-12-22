@@ -2862,12 +2862,10 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                              : NULL;
     EllipticCurve* curve     = NULL;
     word32         oid       = 0;
-    word16         octets    = 0; /* according to 'ecc_set_type ecc_sets[];' */
     int            sig       = 0; /* validate signature */
     int            key       = 0; /* validate key       */
 
     (void)oid;
-    (void)octets;
 
     if (!extension)
         return 1; /* no suite restriction */
@@ -2880,62 +2878,65 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
         switch (curve->name) {
     #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP160R1: oid = ECC_SECP160R1_OID; octets = 20; break;
+            case WOLFSSL_ECC_SECP160R1: oid = ECC_SECP160R1_OID; break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_SECPR2
-            case WOLFSSL_ECC_SECP160R2: oid = ECC_SECP160R2_OID; octets = 20; break;
+            case WOLFSSL_ECC_SECP160R2: oid = ECC_SECP160R2_OID; break;
         #endif /* HAVE_ECC_SECPR2 */
         #ifdef HAVE_ECC_KOBLITZ
-            case WOLFSSL_ECC_SECP160K1: oid = ECC_SECP160K1_OID; octets = 20; break;
+            case WOLFSSL_ECC_SECP160K1: oid = ECC_SECP160K1_OID; break;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
     #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP192R1: oid = ECC_SECP192R1_OID; octets = 24; break;
+            case WOLFSSL_ECC_SECP192R1: oid = ECC_SECP192R1_OID; break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
-            case WOLFSSL_ECC_SECP192K1: oid = ECC_SECP192K1_OID; octets = 24; break;
+            case WOLFSSL_ECC_SECP192K1: oid = ECC_SECP192K1_OID; break;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
     #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP224R1: oid = ECC_SECP224R1_OID; octets = 28; break;
+            case WOLFSSL_ECC_SECP224R1: oid = ECC_SECP224R1_OID; break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
-            case WOLFSSL_ECC_SECP224K1: oid = ECC_SECP224K1_OID; octets = 28; break;
+            case WOLFSSL_ECC_SECP224K1: oid = ECC_SECP224K1_OID; break;
         #endif /* HAVE_ECC_KOBLITZ */
     #endif
     #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP256R1: oid = ECC_SECP256R1_OID; octets = 32; break;
+            case WOLFSSL_ECC_SECP256R1: oid = ECC_SECP256R1_OID; break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
-            case WOLFSSL_ECC_SECP256K1: oid = ECC_SECP256K1_OID; octets = 32; break;
+            case WOLFSSL_ECC_SECP256K1: oid = ECC_SECP256K1_OID; break;
         #endif /* HAVE_ECC_KOBLITZ */
         #ifdef HAVE_ECC_BRAINPOOL
-            case WOLFSSL_ECC_BRAINPOOLP256R1: oid = ECC_BRAINPOOLP256R1_OID; octets = 32; break;
+            case WOLFSSL_ECC_BRAINPOOLP256R1: oid = ECC_BRAINPOOLP256R1_OID; break;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP384R1: oid = ECC_SECP384R1_OID; octets = 48; break;
+            case WOLFSSL_ECC_SECP384R1: oid = ECC_SECP384R1_OID; break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_BRAINPOOL
-            case WOLFSSL_ECC_BRAINPOOLP384R1: oid = ECC_BRAINPOOLP384R1_OID; octets = 48; break;
+            case WOLFSSL_ECC_BRAINPOOLP384R1: oid = ECC_BRAINPOOLP384R1_OID; break;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
         #ifdef HAVE_ECC_BRAINPOOL
-            case WOLFSSL_ECC_BRAINPOOLP512R1: oid = ECC_BRAINPOOLP512R1_OID; octets = 64; break;
+            case WOLFSSL_ECC_BRAINPOOLP512R1: oid = ECC_BRAINPOOLP512R1_OID; break;
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
-            case WOLFSSL_ECC_SECP521R1: oid = ECC_SECP521R1_OID; octets = 66; break;
+            case WOLFSSL_ECC_SECP521R1: oid = ECC_SECP521R1_OID; break;
         #endif /* !NO_ECC_SECP */
     #endif
             default: continue; /* unsupported curve */
         }
+
+        if (ssl->ecdhCurveOID == 0)
+            ssl->ecdhCurveOID = oid;
 
         if (first == ECC_BYTE) {
         switch (second) {
@@ -2951,7 +2952,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
             case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8:
                 sig |= ssl->pkCurveOID == oid;
-                key |= ssl->eccTempKeySz == octets;
+                key |= ssl->ecdhCurveOID == oid;
             break;
 
 #ifdef WOLFSSL_STATIC_DH
@@ -2979,7 +2980,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
             case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
                 sig = 1;
-                key |= ssl->eccTempKeySz == octets;
+                key |= ssl->ecdhCurveOID == oid;
             break;
 
 #ifdef WOLFSSL_STATIC_DH
@@ -3011,14 +3012,14 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
             case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
             case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
                 sig |= ssl->pkCurveOID == oid;
-                key |= ssl->eccTempKeySz == octets;
+                key |= ssl->ecdhCurveOID == oid;
             break;
 #ifndef NO_RSA
             /* ECDHE_RSA */
             case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
             case TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
                 sig = 1;
-                key |= ssl->eccTempKeySz == octets;
+                key |= ssl->ecdhCurveOID == oid;
             break;
 #endif
             default:

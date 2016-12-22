@@ -944,6 +944,18 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret);
 
 #endif /* WOLFSSL_ATECC508A */
 
+const char* wc_ecc_get_name(int curve_id)
+{
+    int x;
+
+    /* find ecc_set based on curve_id or key size */
+    for (x = 0; ecc_sets[x].size != 0; x++) {
+        if (curve_id == ecc_sets[x].id)
+            return ecc_sets[x].name;
+    }
+
+    return NULL;
+}
 
 static int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
 {

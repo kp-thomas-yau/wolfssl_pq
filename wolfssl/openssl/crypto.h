@@ -3,6 +3,7 @@
 #ifndef WOLFSSL_CRYPTO_H_
 #define WOLFSSL_CRYPTO_H_
 
+#include <openssl/opensslv.h>
 
 #include <wolfssl/wolfcrypt/settings.h>
 
@@ -23,7 +24,7 @@ WOLFSSL_API unsigned long wolfSSLeay(void);
 #define SSLEAY_VERSION 0x0090600fL
 #define SSLEAY_VERSION_NUMBER SSLEAY_VERSION
 
-#ifdef HAVE_STUNNEL
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
 #define CRYPTO_set_mem_ex_functions      wolfSSL_CRYPTO_set_mem_ex_functions
 #define FIPS_mode                        wolfSSL_FIPS_mode
 #define FIPS_mode_set                    wolfSSL_FIPS_mode_set

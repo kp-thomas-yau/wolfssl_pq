@@ -190,6 +190,7 @@ then
     enable_jni=yes
     enable_lighty=yes
     enable_stunnel=yes
+    enable_nginx=yes
     enable_pwdbased=yes
 fi
 AM_CONDITIONAL([BUILD_DISTRO], [test "x$ENABLED_DISTRO" = "xyes"])
@@ -2302,6 +2303,64 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_LIGHTY -DHAVE_WOLFSSL_SSL_H=1"
 fi
 
+# nginx Support
+AC_ARG_ENABLE([nginx],
+    [  --enable-nginx          Enable nginx (default: disabled)],
+    [ ENABLED_NGINX=$enableval ],
+    [ ENABLED_NGINX=no ]
+    )
+if test "$ENABLED_NGINX" = "yes"
+then
+    # Requires opensslextra make sure on
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+    fi
+
+    # Requires sessioncerts make sure on
+    if test "x$ENABLED_SESSIONCERTS" = "xno"
+    then
+        ENABLED_SESSIONCERTS="yes"
+        AM_CFLAGS="$AM_CFLAGS -DSESSION_CERTS"
+    fi
+
+    # Requires crls, make sure on
+    if test "x$ENABLED_CRL" = "xno"
+    then
+        ENABLED_CRL="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL"
+        AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
+    fi
+
+    # Requires tlsx, make sure on
+    if test "x$ENABLED_TLSX" = "xno"
+    then
+        ENABLED_TLSX="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_SUPPORTED_CURVES"
+    fi
+
+    # Requires ecc make sure on
+    if test "x$ENABLED_ECC" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        ENABLED_ECC="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
+        AM_CONDITIONAL([BUILD_ECC], [test "x$ENABLED_ECC" = "xyes"])
+
+        if test "$ENABLED_ECC_SHAMIR" = "yes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
+        fi
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NGINX"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXT_CACHE -DOPENSSL_ERR_ONE -DHAVE_EX_DATA"
+fi
+
+
 # stunnel Support
 AC_ARG_ENABLE([stunnel],
     [  --enable-stunnel        Enable stunnel (default: disabled)],
@@ -2374,7 +2433,7 @@ then
     fi
 
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STUNNEL -DWOLFSSL_ALWAYS_VERIFY_CB"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI -DHAVE_EX_DATA"
 fi
 
 if test "$ENABLED_PSK" = "no" && test "$ENABLED_LEANPSK" = "no" \
@@ -3352,6 +3411,7 @@ echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
+echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"

@@ -349,6 +349,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define SSL_load_client_CA_file wolfSSL_load_client_CA_file
 
+#define SSL_CTX_get_client_CA_list         wolfSSL_SSL_CTX_get_client_CA_list
 #define SSL_CTX_set_client_CA_list         wolfSSL_CTX_set_client_CA_list
 #define SSL_CTX_set_cert_store             wolfSSL_CTX_set_cert_store
 #define SSL_CTX_get_cert_store             wolfSSL_CTX_get_cert_store
@@ -478,7 +479,9 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 /* Lighthttp compatibility */
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL)
+#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) \
+                         || defined(HAVE_STUNNEL) \
+                         || defined(WOLFSSL_NGINX)
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define SSL_CB_HANDSHAKE_START          0x10
@@ -508,16 +511,17 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
 #endif
 
-#if defined(HAVE_STUNNEL) || defined(HAVE_LIGHTY) \
-    || defined(WOLFSSL_MYSQL_COMPATIBLE)
+#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) \
+                         || defined(HAVE_STUNNEL) \
+                         || defined(WOLFSSL_NGINX)
 
 #define OBJ_nid2ln wolfSSL_OBJ_nid2ln
 #define OBJ_txt2nid wolfSSL_OBJ_txt2nid
 #define PEM_read_bio_DHparams wolfSSL_PEM_read_bio_DHparams
 #define PEM_read_bio_DSAparams wolfSSL_PEM_read_bio_DSAparams
-#define PEM_write_bio_X509 PEM_write_bio_WOLFSSL_X509
+#define PEM_write_bio_X509 wolfSSL_PEM_write_bio_X509
 
-#endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE */
+#endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX */
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 
 #define BIO_new_file        wolfSSL_BIO_new_file
@@ -605,7 +609,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_V_FLAG_CRL_CHECK     WOLFSSL_CRL_CHECK
 #define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_CRL_CHECKALL
 
-#ifdef HAVE_STUNNEL
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
 #include <wolfssl/openssl/asn1.h>
 
 /* defined as: (SSL_ST_ACCEPT|SSL_CB_LOOP), which becomes 0x2001*/
@@ -664,7 +668,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_clear_options wolfSSL_CTX_clear_options
 
 
-#endif /* HAVE_STUNNEL */
+#endif /* HAVE_STUNNEL || WOLFSSL_NGINX */
 #define SSL_CTX_get_default_passwd_cb          wolfSSL_CTX_get_default_passwd_cb
 #define SSL_CTX_get_default_passwd_cb_userdata wolfSSL_CTX_get_default_passwd_cb_userdata
 
@@ -703,6 +707,83 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define NID_policy_constraints        150
 #define NID_inhibit_any_policy        168 /* 2.5.29.54 */
 #define NID_tlsfeature                92  /* id-pe 24 */
+
+#ifdef WOLFSSL_NGINX
+#include <wolfssl/error-ssl.h>
+
+/* Nginx checks these to see if the error was a handshake error. */
+#define SSL_R_BAD_CHANGE_CIPHER_SPEC               LENGTH_ERROR
+#define SSL_R_BLOCK_CIPHER_PAD_IS_WRONG            BUFFER_E
+#define SSL_R_DIGEST_CHECK_FAILED                  VERIFY_MAC_ERROR
+#define SSL_R_ERROR_IN_RECEIVED_CIPHER_LIST        SUITES_ERROR
+#define SSL_R_EXCESSIVE_MESSAGE_SIZE               BUFFER_ERROR
+#define SSL_R_LENGTH_MISMATCH                      LENGTH_ERROR
+#define SSL_R_NO_CIPHERS_SPECIFIED                 SUITES_ERROR
+#define SSL_R_NO_COMPRESSION_SPECIFIED             COMPRESSION_ERROR
+#define SSL_R_NO_SHARED_CIPHER                     MATCH_SUITE_ERROR
+#define SSL_R_RECORD_LENGTH_MISMATCH               HANDSHAKE_SIZE_ERROR
+#define SSL_R_UNEXPECTED_MESSAGE                   OUT_OF_ORDER_E
+#define SSL_R_UNEXPECTED_RECORD                    SANITY_MSG_E
+#define SSL_R_UNKNOWN_ALERT_TYPE                   BUFFER_ERROR
+#define SSL_R_UNKNOWN_PROTOCOL                     VERSION_ERROR
+#define SSL_R_WRONG_VERSION_NUMBER                 VERSION_ERROR
+#define SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC  ENCRYPT_ERROR
+
+/* Nginx uses this to determine if reached end of certs in file.
+ * PEM_read_bio_X509 is called and the return error is lost.
+ * The error that needs to be detected is: SSL_NO_PEM_HEADER.
+ */
+#define ERR_GET_LIB(l)  (int)((((unsigned long)l)>>24L)&0xffL)
+#define PEM_R_NO_START_LINE     108
+#define ERR_LIB_PEM             9
+
+#define OPENSSL_config	          wolfSSL_OPENSSL_config
+#define X509_get_ex_new_index     wolfSSL_X509_get_ex_new_index
+#define X509_get_ex_data          wolfSSL_X509_get_ex_data
+#define X509_set_ex_data          wolfSSL_X509_set_ex_data
+#define X509_NAME_digest          wolfSSL_X509_NAME_digest
+#define SSL_CTX_get_timeout       wolfSSL_SSL_CTX_get_timeout
+#define SSL_CTX_set_tmp_ecdh      wolfSSL_SSL_CTX_set_tmp_ecdh
+#define SSL_CTX_remove_session    wolfSSL_SSL_CTX_remove_session
+#define SSL_get_rbio              wolfSSL_SSL_get_rbio
+#define SSL_get_wbio              wolfSSL_SSL_get_wbio
+#define SSL_do_handshake          wolfSSL_SSL_do_handshake
+#define SSL_in_init               wolfSSL_SSL_in_init
+#define SSL_get0_session          wolfSSL_SSL_get0_session
+#define X509_check_host           wolfSSL_X509_check_host
+#define i2a_ASN1_INTEGER          wolfSSL_i2a_ASN1_INTEGER
+#define ERR_peek_error_line_data  wolfSSL_ERR_peek_error_line_data
+
+WOLFSSL_API void wolfSSL_OPENSSL_config(char *config_name);
+WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a,
+    void *b, void *c);
+WOLFSSL_API void *wolfSSL_X509_get_ex_data(X509 *x509, int idx);
+WOLFSSL_API int wolfSSL_X509_set_ex_data(X509 *x509, int idx, void *data);
+
+WOLFSSL_API int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *data,
+    const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len);
+
+WOLFSSL_API long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx);
+WOLFSSL_API int wolfSSL_SSL_CTX_set_tmp_ecdh(WOLFSSL_CTX *ctx,
+    WOLFSSL_EC_KEY *ecdh);
+WOLFSSL_API int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *,
+    WOLFSSL_SESSION *c);
+
+WOLFSSL_API BIO *wolfSSL_SSL_get_rbio(const WOLFSSL *s);
+WOLFSSL_API BIO *wolfSSL_SSL_get_wbio(const WOLFSSL *s);
+WOLFSSL_API int wolfSSL_SSL_do_handshake(WOLFSSL *s);
+WOLFSSL_API int wolfSSL_SSL_in_init(WOLFSSL *a); /* #define in OpenSSL */
+WOLFSSL_API WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *s);
+WOLFSSL_API int wolfSSL_X509_check_host(X509 *x, const char *chk, size_t chklen,
+                    unsigned int flags, char **peername);
+
+WOLFSSL_API int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a);
+
+WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
+                                       const char **data, int *flags);
+
+WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(BIO *bio, X509 *cert);
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */
