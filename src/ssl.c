@@ -52,13 +52,13 @@
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
                               defined(WOLFSSL_KEY_GEN)
-    #include <wolfssl/openssl/evp.h>
     /* openssl headers end, wolfssl internal headers next */
     #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #endif
 
 #ifdef OPENSSL_EXTRA
     /* openssl headers begin */
+    #include <wolfssl/openssl/evp.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/des.h>
@@ -17899,6 +17899,14 @@ void wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
     }
 }
 
+int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key, int len,
+                         const EVP_MD* md, void* impl)
+{
+    (void)impl;
+    wolfSSL_HMAC_Init(ctx, key, len, md);
+    return 1;
+}
+
 
 void wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx, const unsigned char* data,
                     int len)
@@ -18186,6 +18194,38 @@ int wolfSSL_EVP_CIPHER_CTX_iv_length(const WOLFSSL_EVP_CIPHER_CTX* ctx)
     return 0;
 }
 
+int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
+{
+    const char *name = (const char *)cipher;
+    WOLFSSL_MSG("wolfSSL_EVP_CIPHER_iv_length");
+
+    if ((XSTRNCMP(name, EVP_AES_128_CBC, XSTRLEN(EVP_AES_128_CBC)) == 0) ||
+           (XSTRNCMP(name, EVP_AES_192_CBC, XSTRLEN(EVP_AES_192_CBC)) == 0) ||
+           (XSTRNCMP(name, EVP_AES_256_CBC, XSTRLEN(EVP_AES_256_CBC)) == 0)) {
+        return AES_BLOCK_SIZE;
+    }
+#ifdef WOLFSSL_AES_COUNTER
+    if ((XSTRNCMP(name, EVP_AES_128_CTR, XSTRLEN(EVP_AES_128_CTR)) == 0) ||
+           (XSTRNCMP(name, EVP_AES_192_CTR, XSTRLEN(EVP_AES_192_CTR)) == 0) ||
+           (XSTRNCMP(name, EVP_AES_256_CTR, XSTRLEN(EVP_AES_256_CTR)) == 0)) {
+        return AES_BLOCK_SIZE;
+    }
+#endif
+
+#ifndef NO_DES3
+    if ((XSTRNCMP(name, EVP_DES_CBC, XSTRLEN(EVP_DES_CBC)) == 0) ||
+           (XSTRNCMP(name, EVP_DES_EDE3_CBC, XSTRLEN(EVP_DES_EDE3_CBC)) == 0)) {
+        return DES_BLOCK_SIZE;
+    }
+#endif
+
+#ifdef HAVE_IDEA
+    if (XSTRNCMP(name, EVP_IDEA_CBC, XSTRLEN(EVP_IDEA_CBC)) == 0)
+        return IDEA_BLOCK_SIZE;
+#endif
+
+    return 0;
+}
 
 /* Free the dynamically allocated data.
  *
@@ -22512,6 +22552,109 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 #endif
 
 }
-#endif
+
+#ifdef HAVE_SESSION_TICKET
+/* The ticket key callback as used in OpenSSL is stored here. */
+static int (*ticketKeyCb)(WOLFSSL *ssl, unsigned char *name, unsigned char *iv,
+    WOLFSSL_EVP_CIPHER_CTX *ectx, WOLFSSL_HMAC_CTX *hctx, int enc) = NULL;
+
+/* Implementation of session ticket encryption/decryption using OpenSSL
+ * callback to initialize the cipher and HMAC.
+ *
+ * ssl           The SSL/TLS object.
+ * keyName       The key name - used to identify the key to be used.
+ * iv            The IV to use.
+ * mac           The MAC of the encrypted data.
+ * enc           Encrypt ticket.
+ * encTicket     The ticket data.
+ * encTicketLen  The length of the ticket data.
+ * encLen        The encrypted/decrypted ticket length - output length.
+ * ctx           Ignored. Application specific data.
+ */
+static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
+                                  unsigned char keyName[WOLFSSL_TICKET_NAME_SZ],
+                                  unsigned char iv[WOLFSSL_TICKET_IV_SZ],
+                                  unsigned char mac[WOLFSSL_TICKET_MAC_SZ],
+                                  int enc, unsigned char* encTicket,
+                                  int encTicketLen, int* encLen, void* ctx)
+{
+    byte                    digest[MAX_DIGEST_SIZE];
+    WOLFSSL_EVP_CIPHER_CTX  evpCtx;
+    WOLFSSL_HMAC_CTX        hmacCtx;
+    unsigned int            mdSz;
+    int                     len = 0;
+    int                     ret = WOLFSSL_TICKET_RET_FATAL;
+
+    (void)ctx;
+
+    /* Initialize the cipher and HMAC. */
+    ret = ticketKeyCb(ssl, keyName, iv, &evpCtx, &hmacCtx, enc);
+    if (ret == 2)
+        return WOLFSSL_TICKET_RET_CREATE;
+    if (ret != 1)
+        return WOLFSSL_TICKET_RET_FATAL;
+
+    if (enc)
+    {
+        /* Encrypt in place. */
+        if (!wolfSSL_EVP_CipherUpdate(&evpCtx, encTicket, &len,
+                                      encTicket, encTicketLen))
+            goto end;
+        encTicketLen = len;
+        if (!wolfSSL_EVP_EncryptFinal(&evpCtx, &encTicket[encTicketLen], &len))
+            goto end;
+        /* Total length of encrypted data. */
+        encTicketLen += len;
+        *encLen = encTicketLen;
+
+        /* HMAC the encrypted data into the parameter 'mac'. */
+        wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen);
+        wolfSSL_HMAC_Final(&hmacCtx, mac, &mdSz);
+    }
+    else
+    {
+        /* HMAC the encrypted data and compare it to the passed in data. */
+        wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen);
+        wolfSSL_HMAC_Final(&hmacCtx, digest, &mdSz);
+        if (XMEMCMP(mac, digest, mdSz) != 0)
+            goto end;
+
+        /* Decrypt the ticket data in place. */
+        if (!wolfSSL_EVP_CipherUpdate(&evpCtx, encTicket, &len,
+                                      encTicket, encTicketLen))
+            goto end;
+        encTicketLen = len;
+        if (!wolfSSL_EVP_DecryptFinal(&evpCtx, &encTicket[encTicketLen], &len))
+            goto end;
+        /* Total length of decrypted data. */
+        *encLen = encTicketLen + len;
+    }
+
+    ret = WOLFSSL_TICKET_RET_OK;
+end:
+    return ret;
+}
+
+/* Set the callback to use when encrypting/decrypting tickets.
+ *
+ * ctx  The SSL/TLS context object.
+ * cb   The OpenSSL session ticket callback.
+ */
+int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *ctx, int (*cb)(
+    WOLFSSL *ssl, unsigned char *name, unsigned char *iv,
+    WOLFSSL_EVP_CIPHER_CTX *ectx, WOLFSSL_HMAC_CTX *hctx, int enc))
+{
+    /* Store callback in a global. */
+    ticketKeyCb = cb;
+    /* Set the ticket encryption callback to be a wrapper around OpenSSL
+     * callback.
+     */
+    ctx->ticketEncCb = wolfSSL_TicketKeyCb;
+
+    return 1;
+}
+#endif /* HAVE_SESSION_TICKET */
+
+#endif /* WOLFSSL_NGINX */
 
 #endif /* WOLFCRYPT_ONLY */

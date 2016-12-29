@@ -95,10 +95,18 @@ typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
     #define WC_RNG_TYPE_DEFINED
 #endif
 
+#ifndef WOLFSSL_DSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_DSA            WOLFSSL_DSA;
+#define WOLFSSL_DSA_TYPE_DEFINED
+#endif
+
+#ifndef WOLFSSL_EC_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
 typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;
 typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_GROUP;
+#define WOLFSSL_EC_TYPE_DEFINED
+#endif
+
 typedef struct WOLFSSL_ECDSA_SIG      WOLFSSL_ECDSA_SIG;
 typedef struct WOLFSSL_CIPHER         WOLFSSL_CIPHER;
 typedef struct WOLFSSL_X509_LOOKUP    WOLFSSL_X509_LOOKUP;
@@ -134,18 +142,12 @@ struct WOLFSSL_ASN1_TIME {
 };
 
 typedef char   WOLFSSL_EVP_MD;
-typedef char   WOLFSSL_EVP_MD;
-typedef struct WOLFSSL_EVP_PKEY {
-    int type;         /* openssh dereference */
-    int save_type;    /* openssh dereference */
-    int pkey_sz;
-    union {
-        char* ptr; /* der format of key / or raw for NTRU */
-    } pkey;
-    #ifdef HAVE_ECC
-        int pkey_curve;
-    #endif
-} WOLFSSL_EVP_PKEY;
+typedef char   WOLFSSL_EVP_CIPHER;
+
+#ifndef WOLFSSL_EVP_PKEY_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
+#define WOLFSSL_EVP_PKEY_TYPE_DEFINED
+#endif
 
 typedef struct WOLFSSL_MD4_CTX {
     int buffer[32];      /* big enough to hold, check size in Init */

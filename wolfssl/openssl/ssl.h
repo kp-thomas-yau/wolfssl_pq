@@ -32,6 +32,8 @@
 /* wolfssl_openssl compatibility layer */
 #include <wolfssl/ssl.h>
 
+#include <wolfssl/openssl/evp.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -710,6 +712,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 
 #ifdef WOLFSSL_NGINX
 #include <wolfssl/error-ssl.h>
+#include <wolfssl/openssl/hmac.h>
 
 /* Nginx checks these to see if the error was a handshake error. */
 #define SSL_R_BAD_CHANGE_CIPHER_SPEC               LENGTH_ERROR
@@ -737,22 +740,27 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define PEM_R_NO_START_LINE     108
 #define ERR_LIB_PEM             9
 
-#define OPENSSL_config	          wolfSSL_OPENSSL_config
-#define X509_get_ex_new_index     wolfSSL_X509_get_ex_new_index
-#define X509_get_ex_data          wolfSSL_X509_get_ex_data
-#define X509_set_ex_data          wolfSSL_X509_set_ex_data
-#define X509_NAME_digest          wolfSSL_X509_NAME_digest
-#define SSL_CTX_get_timeout       wolfSSL_SSL_CTX_get_timeout
-#define SSL_CTX_set_tmp_ecdh      wolfSSL_SSL_CTX_set_tmp_ecdh
-#define SSL_CTX_remove_session    wolfSSL_SSL_CTX_remove_session
-#define SSL_get_rbio              wolfSSL_SSL_get_rbio
-#define SSL_get_wbio              wolfSSL_SSL_get_wbio
-#define SSL_do_handshake          wolfSSL_SSL_do_handshake
-#define SSL_in_init               wolfSSL_SSL_in_init
-#define SSL_get0_session          wolfSSL_SSL_get0_session
-#define X509_check_host           wolfSSL_X509_check_host
-#define i2a_ASN1_INTEGER          wolfSSL_i2a_ASN1_INTEGER
-#define ERR_peek_error_line_data  wolfSSL_ERR_peek_error_line_data
+#ifdef HAVE_SESSION_TICKET
+#define SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB 72
+#endif
+
+#define OPENSSL_config	                  wolfSSL_OPENSSL_config
+#define X509_get_ex_new_index             wolfSSL_X509_get_ex_new_index
+#define X509_get_ex_data                  wolfSSL_X509_get_ex_data
+#define X509_set_ex_data                  wolfSSL_X509_set_ex_data
+#define X509_NAME_digest                  wolfSSL_X509_NAME_digest
+#define SSL_CTX_get_timeout               wolfSSL_SSL_CTX_get_timeout
+#define SSL_CTX_set_tmp_ecdh              wolfSSL_SSL_CTX_set_tmp_ecdh
+#define SSL_CTX_remove_session            wolfSSL_SSL_CTX_remove_session
+#define SSL_get_rbio                      wolfSSL_SSL_get_rbio
+#define SSL_get_wbio                      wolfSSL_SSL_get_wbio
+#define SSL_do_handshake                  wolfSSL_SSL_do_handshake
+#define SSL_in_init                       wolfSSL_SSL_in_init
+#define SSL_get0_session                  wolfSSL_SSL_get0_session
+#define X509_check_host                   wolfSSL_X509_check_host
+#define i2a_ASN1_INTEGER                  wolfSSL_i2a_ASN1_INTEGER
+#define ERR_peek_error_line_data          wolfSSL_ERR_peek_error_line_data
+#define SSL_CTX_set_tlsext_ticket_key_cb  wolfSSL_CTX_set_tlsext_ticket_key_cb
 
 WOLFSSL_API void wolfSSL_OPENSSL_config(char *config_name);
 WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a,
@@ -775,12 +783,19 @@ WOLFSSL_API int wolfSSL_SSL_do_handshake(WOLFSSL *s);
 WOLFSSL_API int wolfSSL_SSL_in_init(WOLFSSL *a); /* #define in OpenSSL */
 WOLFSSL_API WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *s);
 WOLFSSL_API int wolfSSL_X509_check_host(X509 *x, const char *chk, size_t chklen,
-                    unsigned int flags, char **peername);
+    unsigned int flags, char **peername);
 
-WOLFSSL_API int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a);
+WOLFSSL_API int wolfSSL_i2a_ASN1_INTEGER(BIO *bp,
+    const WOLFSSL_ASN1_INTEGER *a);
 
-WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
-                                       const char **data, int *flags);
+WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file,
+    int *line, const char **data, int *flags);
+
+#ifdef HAVE_SESSION_TICKET
+WOLFSSL_API int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *, int (*)(
+    WOLFSSL *ssl, unsigned char *name, unsigned char *iv,
+    WOLFSSL_EVP_CIPHER_CTX *ectx, WOLFSSL_HMAC_CTX *hctx, int enc));
+#endif
 
 WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(BIO *bio, X509 *cert);
 #endif

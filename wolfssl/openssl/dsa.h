@@ -4,11 +4,15 @@
 #ifndef WOLFSSL_DSA_H_
 #define WOLFSSL_DSA_H_
 
-#include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/bn.h>
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+#ifndef WOLFSSL_DSA_TYPE_DEFINED /* guard on redeclaration */
+typedef struct WOLFSSL_DSA            WOLFSSL_DSA;
+#define WOLFSSL_DSA_TYPE_DEFINED
 #endif
 
 struct WOLFSSL_DSA {
