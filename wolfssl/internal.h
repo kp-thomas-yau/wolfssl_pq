@@ -1962,7 +1962,7 @@ struct WOLFSSL_CTX {
     byte        failNoCertxPSK;   /* fail if no cert with the exception of PSK*/
     byte        sessionCacheOff;
     byte        sessionCacheFlushOff;
-#ifdef OPENSSL_EXT_CACHE
+#ifdef HAVE_EXT_CACHE
     byte        internalCacheOff;
 #endif
     byte        sendVerify;       /* for client side */
@@ -2074,7 +2074,7 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_WOLF_EVENT
         WOLF_EVENT_QUEUE event_queue;
 #endif /* HAVE_WOLF_EVENT */
-#ifdef OPENSSL_EXT_CACHE
+#ifdef HAVE_EXT_CACHE
         WOLFSSL_SESSION*(*get_sess_cb)(WOLFSSL*, unsigned char*, int, int*);
         int (*new_sess_cb)(WOLFSSL*, WOLFSSL_SESSION*);
         void (*rem_sess_cb)(WOLFSSL_CTX*, WOLFSSL_SESSION*);
@@ -2298,6 +2298,9 @@ struct WOLFSSL_SESSION {
     byte               staticTicket[SESSION_TICKET_LEN];
     byte               isDynamic;
 #endif
+#ifdef HAVE_EXT_CACHE
+    byte               isAlloced;
+#endif
 #ifdef HAVE_EX_DATA
     void*              ex_data[MAX_EX_DATA];
 #endif
@@ -2417,7 +2420,7 @@ typedef struct Options {
     word16            sendVerify:2;     /* false = 0, true = 1, sendBlank = 2 */
     word16            sessionCacheOff:1;
     word16            sessionCacheFlushOff:1;
-#ifdef OPENSSL_EXT_CACHE
+#ifdef HAVE_EXT_CACHE
     word16            internalCacheOff:1;
 #endif
     word16            side:1;             /* client or server end */
@@ -2771,6 +2774,9 @@ struct WOLFSSL {
     Ciphers         decrypt;
     Buffers         buffers;
     WOLFSSL_SESSION session;
+#ifdef HAVE_EXT_CACHE
+    WOLFSSL_SESSION* extSession;
+#endif
     WOLFSSL_ALERT_HISTORY alert_history;
     int             error;
     int             rfd;                /* read  file descriptor */

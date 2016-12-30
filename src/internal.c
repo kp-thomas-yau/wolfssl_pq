@@ -3277,7 +3277,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
     ssl->options.sessionCacheFlushOff = ctx->sessionCacheFlushOff;
-#ifdef OPENSSL_EXT_CACHE
+#ifdef HAVE_EXT_CACHE
     ssl->options.internalCacheOff     = ctx->internalCacheOff;
 #endif
 
@@ -3829,6 +3829,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         ssl->session.isDynamic = 0;
         ssl->session.ticketLen = 0;
     }
+#endif
+#ifdef HAVE_EXT_CACHE
+    wolfSSL_SESSION_free(ssl->extSession);
 #endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
@@ -18871,6 +18874,9 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 WOLFSSL_MSG("Session lookup for resume failed");
                 ssl->options.resuming = 0;
             } else {
+            #ifdef HAVE_EXT_CACHE
+                wolfSSL_SESSION_free(session);
+            #endif
                 if (MatchSuite(ssl, &clSuites) < 0) {
                     WOLFSSL_MSG("Unsupported cipher suite, OldClientHello");
                     return UNSUPPORTED_SUITE;
@@ -19321,8 +19327,14 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 "using EMS");
                     return EXT_MASTER_SECRET_NEEDED_E;
                 }
+#ifdef HAVE_EXT_CACHE
+                wolfSSL_SESSION_free(session);
+#endif
             }
             else {
+#ifdef HAVE_EXT_CACHE
+                wolfSSL_SESSION_free(session);
+#endif
                 if (MatchSuite(ssl, &clSuites) < 0) {
                     WOLFSSL_MSG("Unsupported cipher suite, ClientHello");
                     return UNSUPPORTED_SUITE;
