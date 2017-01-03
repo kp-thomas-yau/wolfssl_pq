@@ -9453,6 +9453,9 @@ static int DecodeSingleResponse(byte* source,
             return ASN_PARSE_E;
     }
 
+#ifdef WOLFSSL_NGINX
+    cs->thisDateASN1 = source + idx;
+#endif
     if (GetBasicDate(source, &idx, cs->thisDate,
                                                 &cs->thisDateFormat, size) < 0)
         return ASN_PARSE_E;
@@ -9468,6 +9471,9 @@ static int DecodeSingleResponse(byte* source,
         idx++;
         if (GetLength(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
+#ifdef WOLFSSL_NGINX
+        cs->nextDateASN1 = source + idx;
+#endif
         if (GetBasicDate(source, &idx, cs->nextDate,
                                                 &cs->nextDateFormat, size) < 0)
             return ASN_PARSE_E;
@@ -9693,9 +9699,13 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ASN_PARSE_E;
 
         InitDecodedCert(&cert, resp->cert, resp->certSz, heap);
-        ret = ParseCertRelative(&cert, CERT_TYPE, VERIFY, cm);
-        if (ret < 0)
+        /* Don't verify if we don't have access to Cert Manager. */
+        ret = ParseCertRelative(&cert, CERT_TYPE,
+                                cm == NULL ? NO_VERIFY : VERIFY, cm);
+        if (ret < 0) {
+            FreeDecodedCert(&cert);
             return ret;
+        }
 
         ret = ConfirmSignature(resp->response, resp->responseSz,
                             cert.publicKey, cert.pubKeySize, cert.keyOID,
@@ -9741,6 +9751,7 @@ void InitOcspResponse(OcspResponse* resp, CertStatus* status,
 
 int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap)
 {
+    int ret;
     int length = 0;
     word32 idx = 0;
     byte* source = resp->source;
@@ -9783,8 +9794,9 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap)
     if (GetLength(source, &idx, &length, size) < 0)
         return ASN_PARSE_E;
 
-    if (DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap) < 0)
-        return ASN_PARSE_E;
+    ret = DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap);
+    if (ret < 0)
+        return ret;
 
     return 0;
 }
@@ -9879,6 +9891,8 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
         if (i == 2) totalSz += extSz;
     }
 
+    if (output == NULL)
+        return totalSz;
     if (totalSz > size)
         return BUFFER_E;
 

@@ -1464,6 +1464,9 @@ struct WOLFSSL_OCSP {
     WOLFSSL_CERT_MANAGER* cm;            /* pointer back to cert manager */
     OcspEntry*            ocspList;      /* OCSP response list */
     wolfSSL_Mutex         ocspLock;      /* OCSP list lock */
+#ifdef WOLFSSL_NGINX
+    int(*statusCb)(WOLFSSL*, void*);
+#endif
 };
 
 #ifndef MAX_DATE_SIZE
@@ -2544,6 +2547,7 @@ struct WOLFSSL_STACK {
         WOLFSSL_X509_NAME*   name;
         WOLFSSL_BIO*         bio;
         WOLFSSL_ASN1_OBJECT* obj;
+        char*                string;
     } data;
     WOLFSSL_STACK* next;
 };
@@ -2907,6 +2911,10 @@ struct WOLFSSL {
         byte                  expect_session_ticket;
     #endif
 #endif /* HAVE_TLS_EXTENSIONS */
+#ifdef OPENSSL_EXTRA
+    byte*           ocspResp;
+    int             ocspRespSz;
+#endif
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */
 #endif

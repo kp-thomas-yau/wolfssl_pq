@@ -2236,9 +2236,13 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
     if (csr) {
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
-                if (ssl->ctx->cm->ocspEnabled)
+                if (ssl->ctx->cm->ocspEnabled) {
+                #ifdef WOLFSSL_NGINX
+                    csr->request.ocsp.ssl = ssl;
+                #endif
                     return CheckOcspRequest(ssl->ctx->cm->ocsp,
                                                       &csr->request.ocsp, NULL);
+                }
                 else
                     return OCSP_LOOKUP_FAIL;
         }
@@ -2641,9 +2645,13 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
                 /* followed by */
 
             case WOLFSSL_CSR2_OCSP_MULTI:
-                if (ssl->ctx->cm->ocspEnabled)
+                if (ssl->ctx->cm->ocspEnabled) {
+                #ifdef WOLFSSL_NGINX
+                    csr2->request.ocsp[0].ssl = ssl;
+                #endif
                     return CheckOcspRequest(ssl->ctx->cm->ocsp,
                                                   &csr2->request.ocsp[0], NULL);
+                }
                 else
                     return OCSP_LOOKUP_FAIL;
         }

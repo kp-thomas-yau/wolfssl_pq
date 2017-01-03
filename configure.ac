@@ -2318,6 +2318,14 @@ then
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
     fi
 
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+
     # Requires sessioncerts make sure on
     if test "x$ENABLED_SESSIONCERTS" = "xno"
     then
@@ -2357,6 +2365,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NGINX"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
+    AM_CFLAGS="$AM_CFLAGS -DKEEP_OUR_CERT"
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE -DOPENSSL_ERR_ONE -DHAVE_EX_DATA"
 fi
 

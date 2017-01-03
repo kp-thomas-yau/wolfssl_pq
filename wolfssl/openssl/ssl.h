@@ -63,26 +63,26 @@ typedef WOLFSSL_X509_CHAIN X509_CHAIN;
 #define WOLFSSL_TYPES_DEFINED
 
 
-typedef WOLFSSL_EVP_PKEY       EVP_PKEY;
-typedef WOLFSSL_RSA            RSA;
-typedef WOLFSSL_DSA            DSA;
-typedef WOLFSSL_EC_KEY         EC_KEY;
-typedef WOLFSSL_EC_GROUP       EC_GROUP;
-typedef WOLFSSL_EC_POINT       EC_POINT;
-typedef WOLFSSL_ECDSA_SIG	   ECDSA_SIG;
-typedef WOLFSSL_BIO            BIO;
-typedef WOLFSSL_BIO_METHOD     BIO_METHOD;
-typedef WOLFSSL_CIPHER         SSL_CIPHER;
-typedef WOLFSSL_X509_LOOKUP    X509_LOOKUP;
-typedef WOLFSSL_X509_LOOKUP_METHOD X509_LOOKUP_METHOD;
-typedef WOLFSSL_X509_CRL       X509_CRL;
-typedef WOLFSSL_X509_EXTENSION X509_EXTENSION;
-typedef WOLFSSL_ASN1_TIME      ASN1_TIME;
-typedef WOLFSSL_ASN1_INTEGER   ASN1_INTEGER;
-typedef WOLFSSL_ASN1_OBJECT    ASN1_OBJECT;
-typedef WOLFSSL_ASN1_STRING    ASN1_STRING;
-typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
-typedef WOLFSSL_BUF_MEM        BUF_MEM;
+typedef WOLFSSL_EVP_PKEY               EVP_PKEY;
+typedef WOLFSSL_RSA                    RSA;
+typedef WOLFSSL_DSA                    DSA;
+typedef WOLFSSL_EC_KEY                 EC_KEY;
+typedef WOLFSSL_EC_GROUP               EC_GROUP;
+typedef WOLFSSL_EC_POINT               EC_POINT;
+typedef WOLFSSL_ECDSA_SIG              ECDSA_SIG;
+typedef WOLFSSL_BIO                    BIO;
+typedef WOLFSSL_BIO_METHOD             BIO_METHOD;
+typedef WOLFSSL_CIPHER                 SSL_CIPHER;
+typedef WOLFSSL_X509_LOOKUP            X509_LOOKUP;
+typedef WOLFSSL_X509_LOOKUP_METHOD     X509_LOOKUP_METHOD;
+typedef WOLFSSL_X509_CRL               X509_CRL;
+typedef WOLFSSL_X509_EXTENSION         X509_EXTENSION;
+typedef WOLFSSL_ASN1_TIME              ASN1_TIME;
+typedef WOLFSSL_ASN1_INTEGER           ASN1_INTEGER;
+typedef WOLFSSL_ASN1_OBJECT            ASN1_OBJECT;
+typedef WOLFSSL_ASN1_STRING            ASN1_STRING;
+typedef WOLFSSL_dynlock_value          CRYPTO_dynlock_value;
+typedef WOLFSSL_BUF_MEM                BUF_MEM;
 
 /* GENERAL_NAME and BASIC_CONSTRAINTS structs may need implemented as
  * compatibility layer expands. For now treating them as an ASN1_OBJECT */
@@ -94,7 +94,8 @@ typedef WOLFSSL_ASN1_OBJECT BASIC_CONSTRAINTS;
 typedef WOLFSSL_ASN1_OBJECT GENERAL_NAME;
 typedef WOLFSSL_ASN1_OBJECT BASIC_CONSTRAINTS;
 
-#define ASN1_UTCTIME WOLFSSL_ASN1_TIME
+#define ASN1_UTCTIME         WOLFSSL_ASN1_TIME
+#define ASN1_GENERALIZEDTIME WOLFSSL_ASN1_TIME
 
 typedef WOLFSSL_MD4_CTX        MD4_CTX;
 typedef WOLFSSL_COMP_METHOD    COMP_METHOD;
@@ -343,7 +344,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define X509_get_serialNumber wolfSSL_X509_get_serialNumber
 
-#define ASN1_TIME_print wolfSSL_ASN1_TIME_print
+#define ASN1_TIME_print              wolfSSL_ASN1_TIME_print
+#define ASN1_GENERALIZEDTIME_print   wolfSSL_ASN1_GENERALIZEDTIME_print
 
 #define ASN1_INTEGER_cmp wolfSSL_ASN1_INTEGER_cmp
 #define ASN1_INTEGER_get wolfSSL_ASN1_INTEGER_get
@@ -603,7 +605,10 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_CTRL_GET_READ_AHEAD                 40
 #define SSL_CTRL_SET_READ_AHEAD                 41
 
+#define SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB       63
 #define SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB_ARG   64
+
+#define SSL_CTRL_GET_EXTRA_CHAIN_CERTS          82
 
 #define SSL_ctrl     wolfSSL_ctrl
 #define SSL_CTX_ctrl wolfSSL_CTX_ctrl
@@ -712,7 +717,8 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 
 #ifdef WOLFSSL_NGINX
 #include <wolfssl/error-ssl.h>
-#include <wolfssl/openssl/hmac.h>
+
+#define OPENSSL_STRING    WOLFSSL_STRING
 
 /* Nginx checks these to see if the error was a handshake error. */
 #define SSL_R_BAD_CHANGE_CIPHER_SPEC               LENGTH_ERROR
@@ -761,43 +767,17 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define i2a_ASN1_INTEGER                  wolfSSL_i2a_ASN1_INTEGER
 #define ERR_peek_error_line_data          wolfSSL_ERR_peek_error_line_data
 #define SSL_CTX_set_tlsext_ticket_key_cb  wolfSSL_CTX_set_tlsext_ticket_key_cb
+#define X509_email_free                   wolfSSL_X509_email_free
+#define X509_get1_ocsp                    wolfSSL_X509_get1_ocsp
+#define SSL_CTX_set_tlsext_status_cb      wolfSSL_CTX_set_tlsext_status_cb
+#define X509_check_issued                 wolfSSL_X509_check_issued
+#define X509_up_ref                       wolfSSL_X509_up_ref
+#define X509_STORE_CTX_new                wolfSSL_X509_STORE_CTX_new
+#define X509_STORE_CTX_free               wolfSSL_X509_STORE_CTX_free
+#define SSL_CTX_get_extra_chain_certs     wolfSSL_CTX_get_extra_chain_certs
+#define X509_STORE_CTX_get1_issuer        wolfSSL_X509_STORE_CTX_get1_issuer
+#define sk_OPENSSL_STRING_value           wolfSSL_sk_WOLFSSL_STRING_value
 
-WOLFSSL_API void wolfSSL_OPENSSL_config(char *config_name);
-WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a,
-    void *b, void *c);
-WOLFSSL_API void *wolfSSL_X509_get_ex_data(X509 *x509, int idx);
-WOLFSSL_API int wolfSSL_X509_set_ex_data(X509 *x509, int idx, void *data);
-
-WOLFSSL_API int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *data,
-    const WOLFSSL_EVP_MD *type, unsigned char *md, unsigned int *len);
-
-WOLFSSL_API long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx);
-WOLFSSL_API int wolfSSL_SSL_CTX_set_tmp_ecdh(WOLFSSL_CTX *ctx,
-    WOLFSSL_EC_KEY *ecdh);
-WOLFSSL_API int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *,
-    WOLFSSL_SESSION *c);
-
-WOLFSSL_API BIO *wolfSSL_SSL_get_rbio(const WOLFSSL *s);
-WOLFSSL_API BIO *wolfSSL_SSL_get_wbio(const WOLFSSL *s);
-WOLFSSL_API int wolfSSL_SSL_do_handshake(WOLFSSL *s);
-WOLFSSL_API int wolfSSL_SSL_in_init(WOLFSSL *a); /* #define in OpenSSL */
-WOLFSSL_API WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *s);
-WOLFSSL_API int wolfSSL_X509_check_host(X509 *x, const char *chk, size_t chklen,
-    unsigned int flags, char **peername);
-
-WOLFSSL_API int wolfSSL_i2a_ASN1_INTEGER(BIO *bp,
-    const WOLFSSL_ASN1_INTEGER *a);
-
-WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file,
-    int *line, const char **data, int *flags);
-
-#ifdef HAVE_SESSION_TICKET
-WOLFSSL_API int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *, int (*)(
-    WOLFSSL *ssl, unsigned char *name, unsigned char *iv,
-    WOLFSSL_EVP_CIPHER_CTX *ectx, WOLFSSL_HMAC_CTX *hctx, int enc));
-#endif
-
-WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(BIO *bio, X509 *cert);
 #endif
 
 #ifdef __cplusplus

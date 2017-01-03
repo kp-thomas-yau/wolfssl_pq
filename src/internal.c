@@ -11018,6 +11018,9 @@ int SendCertificateStatus(WOLFSSL* ssl)
             }
 
             if (ret == 0) {
+            #ifdef WOLFSSL_NGINX
+                request->ssl = ssl;
+            #endif
                 ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling, request,
                                                                      &response);
 
@@ -11116,6 +11119,9 @@ int SendCertificateStatus(WOLFSSL* ssl)
             }
 
             if (ret == 0) {
+            #ifdef WOLFSSL_NGINX
+                request->ssl = ssl;
+            #endif
                 ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling, request,
                                                                  &responses[0]);
 
@@ -11188,6 +11194,9 @@ int SendCertificateStatus(WOLFSSL* ssl)
                                     &ssl->ctx->cm->ocsp_stapling->ocspLock);
                         }
 
+                    #ifdef WOLFSSL_NGINX
+                        request->ssl = ssl;
+                    #endif
                         ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling,
                                                     request, &responses[i + 1]);
 
@@ -11213,6 +11222,9 @@ int SendCertificateStatus(WOLFSSL* ssl)
             else {
                 while (ret == 0 &&
                             NULL != (request = ssl->ctx->chainOcspRequest[i])) {
+                #ifdef WOLFSSL_NGINX
+                    request->ssl = ssl;
+                #endif
                     ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling,
                                                 request, &responses[++i]);
 

@@ -807,6 +807,10 @@ struct CertStatus {
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
+#ifdef WOLFSSL_NGINX
+    byte* thisDateASN1;
+    byte* nextDateASN1;
+#endif
 
     byte*  rawOcspResponse;
     word32 rawOcspResponseSz;
@@ -853,6 +857,10 @@ struct OcspRequest {
     byte   nonce[MAX_OCSP_NONCE_SZ];
     int    nonceSz;
     void*  heap;
+
+#ifdef WOLFSSL_NGINX
+    void*  ssl;
+#endif
 };
 
 
