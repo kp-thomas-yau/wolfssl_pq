@@ -1483,6 +1483,14 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
             ctx->ca_names = next;
         }
     #endif
+    #ifdef WOLFSSL_NGINX
+        while (ctx->x509Chain != NULL) {
+            WOLFSSL_STACK *next = ctx->x509Chain->next;
+            wolfSSL_X509_free(ctx->x509Chain->data.x509);
+            XFREE(ctx->x509Chain, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->x509Chain = next;
+        }
+    #endif
 #endif
 
 #ifdef HAVE_TLS_EXTENSIONS

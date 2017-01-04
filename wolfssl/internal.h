@@ -1951,6 +1951,9 @@ struct WOLFSSL_CTX {
     #ifdef OPENSSL_EXTRA
     STACK_OF(WOLFSSL_X509_NAME)* ca_names;
     #endif
+    #ifdef WOLFSSL_NGINX
+    STACK_OF(WOLFSSL_X509)* x509Chain;
+    #endif
     DerBuffer*  privateKey;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif

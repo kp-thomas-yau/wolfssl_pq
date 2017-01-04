@@ -9454,7 +9454,7 @@ static int DecodeSingleResponse(byte* source,
     }
 
 #ifdef WOLFSSL_NGINX
-    cs->thisDateASN1 = source + idx;
+    cs->thisDateAsn = source + idx;
 #endif
     if (GetBasicDate(source, &idx, cs->thisDate,
                                                 &cs->thisDateFormat, size) < 0)
@@ -9472,7 +9472,7 @@ static int DecodeSingleResponse(byte* source,
         if (GetLength(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
 #ifdef WOLFSSL_NGINX
-        cs->nextDateASN1 = source + idx;
+        cs->nextDateAsn = source + idx;
 #endif
         if (GetBasicDate(source, &idx, cs->nextDate,
                                                 &cs->nextDateFormat, size) < 0)

@@ -771,7 +771,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define X509_get1_ocsp                    wolfSSL_X509_get1_ocsp
 #define SSL_CTX_set_tlsext_status_cb      wolfSSL_CTX_set_tlsext_status_cb
 #define X509_check_issued                 wolfSSL_X509_check_issued
-#define X509_up_ref                       wolfSSL_X509_up_ref
+#define X509_dup                          wolfSSL_X509_dup
 #define X509_STORE_CTX_new                wolfSSL_X509_STORE_CTX_new
 #define X509_STORE_CTX_free               wolfSSL_X509_STORE_CTX_free
 #define SSL_CTX_get_extra_chain_certs     wolfSSL_CTX_get_extra_chain_certs

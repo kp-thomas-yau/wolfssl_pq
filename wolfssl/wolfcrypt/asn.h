@@ -808,8 +808,8 @@ struct CertStatus {
     byte thisDateFormat;
     byte nextDateFormat;
 #ifdef WOLFSSL_NGINX
-    byte* thisDateASN1;
-    byte* nextDateASN1;
+    byte* thisDateAsn;
+    byte* nextDateAsn;
 #endif
 
     byte*  rawOcspResponse;

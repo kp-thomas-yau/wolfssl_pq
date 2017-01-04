@@ -10410,6 +10410,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         int  ret;
         WOLFSSL* ssl = 0;
         WOLFSSL_BIO* front = bio;
+        byte* p;
 
         WOLFSSL_ENTER("wolfSSL_BIO_write");
 
@@ -10422,6 +10423,29 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return (int)XFWRITE(data, 1, len, bio->file);
         }
     #endif
+
+        if (bio && bio->type == BIO_MEMORY) {
+            if (bio->mem == NULL) {
+                bio->mem = XMALLOC(len, bio->heap, DYNAMIC_TYPE_OPENSSL);
+                if (bio->mem == NULL)
+                    return -1;
+                p = bio->mem;
+            }
+            else {
+                p = XMALLOC(len + bio->memLen, bio->heap, DYNAMIC_TYPE_OPENSSL);
+                if (p == NULL)
+                    return -1;
+                XMEMCPY(p, bio->mem, bio->memLen);
+                XFREE(bio->mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
+                bio->mem = p;
+                p += bio->memLen;
+            }
+
+            XMEMCPY(p, data, len);
+            bio->memLen += len;
+
+            return len;
+        }
 
         /* already got eof, again is error */
         if (bio && front->eof)
@@ -15510,16 +15534,38 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
     return 0;
 }
 
+static INLINE const char* MonthStr(const char* n)
+{
+    static const char monthStr[12][3] = {
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+    return monthStr[(n[0] - '0') * 10 + (n[1] - '0') - 1];
+}
+
 int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
     const WOLFSSL_ASN1_GENERALIZEDTIME* asnTime)
 {
+    const char* p = (const char *)(asnTime->data + 2);
     WOLFSSL_ENTER("wolfSSL_ASN1_GENERALIZEDTIME_print");
 
     if (bio == NULL || asnTime == NULL)
         return BAD_FUNC_ARG;
 
-    /* Step over ASN.1 type and length. */
-    wolfSSL_BIO_write(bio, asnTime->data+2, asnTime->data[1]);
+    wolfSSL_BIO_write(bio, MonthStr(p + 4), 3);
+    wolfSSL_BIO_write(bio, " ", 1);
+    /* Day */
+    wolfSSL_BIO_write(bio, p + 6, 2);
+    wolfSSL_BIO_write(bio, " ", 1);
+    /* Hour */
+    wolfSSL_BIO_write(bio, p + 8, 2);
+    wolfSSL_BIO_write(bio, ":", 1);
+    /* Min */
+    wolfSSL_BIO_write(bio, p + 10, 2);
+    wolfSSL_BIO_write(bio, ":", 1);
+    /* Secs */
+    wolfSSL_BIO_write(bio, p + 12, 2);
+    wolfSSL_BIO_write(bio, " ", 1);
+    wolfSSL_BIO_write(bio, p, 4);
 
     return 0;
 }
@@ -23036,9 +23082,6 @@ static INLINE void ato24(const byte* c, word32* u24)
     *u24 = (c[0] << 16) | (c[1] << 8) | c[2];
 }
 
-/* Leaks the chain - a certificate pulled from the list will be freed as
- * X509_up_ref doesn't work.
- */
 int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, STACK_OF(X509)** chain)
 {
     word32         idx;
@@ -23050,6 +23093,11 @@ int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, STACK_OF(X509)** chain)
         chain = NULL;
         return SSL_FAILURE;
     }
+    if (ctx->x509Chain != NULL) {
+        *chain = ctx->x509Chain;
+        return SSL_SUCCESS;
+    }
+
     *chain = NULL;
     if (ctx->certChain == NULL || ctx->certChain->length == 0) {
         return SSL_SUCCESS;
@@ -23059,6 +23107,7 @@ int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, STACK_OF(X509)** chain)
         node = XMALLOC(sizeof(WOLFSSL_STACK), NULL, DYNAMIC_TYPE_OPENSSL);
         if (node == NULL)
             return SSL_FAILURE;
+        node->next = NULL;
 
         ato24(ctx->certChain->buffer + idx, &length);
         idx += 3;
@@ -23081,6 +23130,8 @@ int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, STACK_OF(X509)** chain)
 
         last = node;
     }
+
+    ctx->x509Chain = *chain;
 
     return SSL_SUCCESS;
 }
@@ -23213,11 +23264,9 @@ int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
     return X509_V_OK;
 }
 
-/* Nginx doesn't need it do do anything. */
-int wolfSSL_X509_up_ref(WOLFSSL_X509 *x)
+WOLFSSL_X509* wolfSSL_X509_dup(WOLFSSL_X509 *x)
 {
-    (void)x;
-    return 1;
+    return wolfSSL_X509_d2i(NULL, x->derCert->buffer, x->derCert->length);
 }
 
 char* wolfSSL_sk_WOLFSSL_STRING_value(STACK_OF(WOLFSSL_STRING)* strings,

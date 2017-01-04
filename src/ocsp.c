@@ -390,8 +390,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                 XFREE(response, NULL, DYNAMIC_TYPE_OPENSSL);
             return ret;
         }
-        url = wolfSSL_get_ocsp_url(ocspRequest->ssl);
-        urlSz = XSTRLEN(url);
+        return OCSP_LOOKUP_FAIL;
     }
 #endif
 
@@ -406,7 +405,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         url = (const char *)ocspRequest->url;
         urlSz = ocspRequest->urlSz;
     }
-    else if (url == NULL) {
+    else {
         /* cert doesn't have extAuthInfo, assuming CERT_GOOD */
         return 0;
     }
@@ -456,9 +455,9 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     if (status != NULL)
         *status = bs->status->status;
     if (thisupd != NULL)
-        *thisupd = (WOLFSSL_ASN1_TIME*)bs->status->thisDate;
+        *thisupd = (WOLFSSL_ASN1_TIME*)bs->status->thisDateAsn;
     if (nextupd != NULL)
-        *nextupd = (WOLFSSL_ASN1_TIME*)bs->status->nextDate;
+        *nextupd = (WOLFSSL_ASN1_TIME*)bs->status->nextDateAsn;
 
     /* TODO: Not needed for Nginx. */
     if (reason != NULL)
@@ -506,21 +505,40 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
 {
     WOLFSSL_OCSP_CERTID* certId;
     DecodedCert cert;
+    WOLFSSL_CERT_MANAGER* cm;
+    int ret;
+    DerBuffer* derCert = NULL;
 
     (void)dgst;
-    (void)issuer;
+
+    cm = wolfSSL_CertManagerNew();
+    if (cm == NULL)
+        return NULL;
+
+
+    ret = AllocDer(&derCert, issuer->derCert->length,
+        issuer->derCert->type, NULL);
+    if (ret == 0) {
+        /* AddCA() frees the buffer. */
+        XMEMCPY(derCert->buffer, issuer->derCert->buffer,
+                issuer->derCert->length);
+        AddCA(cm, &derCert, WOLFSSL_USER_CA, 1);
+    }
 
     certId = XMALLOC(sizeof(WOLFSSL_OCSP_CERTID), NULL, DYNAMIC_TYPE_OPENSSL);
     if (certId != NULL) {
         InitDecodedCert(&cert, subject->derCert->buffer,
                         subject->derCert->length, NULL);
-        if (ParseCert(&cert, CERT_TYPE, 0, NULL) != 0) {
+        if (ParseCertRelative(&cert, CERT_TYPE, VERIFY_OCSP, cm) != 0) {
             XFREE(certId, NULL, DYNAMIC_TYPE_OPENSSL);
-            return NULL;
+            certId = NULL;
         }
-        InitOcspRequest(certId, &cert, 0, NULL);
+        else
+            InitOcspRequest(certId, &cert, 0, NULL);
         FreeDecodedCert(&cert);
     }
+
+    wolfSSL_CertManagerFree(cm);
 
     return certId;
 }
@@ -692,6 +710,14 @@ WOLFSSL_OCSP_BASICRESP* wolfSSL_OCSP_response_get1_basic(OcspResponse* response)
     bs = XMALLOC(sizeof(WOLFSSL_OCSP_BASICRESP), NULL, DYNAMIC_TYPE_OPENSSL);
     if (bs != NULL)
         XMEMCPY(bs, response, sizeof(OcspResponse));
+    bs->status = XMALLOC(sizeof(CertStatus), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    bs->source = XMALLOC(bs->maxIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (bs->status == NULL || bs->source == NULL) {
+        wolfSSL_OCSP_RESPONSE_free(bs);
+        bs = NULL;
+    }
+    XMEMCPY(bs->status, response->status, sizeof(CertStatus));
+    XMEMCPY(bs->source, response->source, response->maxIdx);
     return bs;
 }
 
@@ -733,8 +759,8 @@ WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
     XMEMCPY(req, cid, sizeof(OcspRequest));
 
     if (cid->serial != NULL) {
-        req->serial = XMALLOC(req->serialSz, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
-        req->url = XMALLOC(req->urlSz, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        req->serial = XMALLOC(cid->serialSz, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        req->url = XMALLOC(cid->urlSz, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
         if (req->serial == NULL || req->url == NULL) {
             FreeOcspRequest(req);
             return NULL;
@@ -743,6 +769,8 @@ WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
         XMEMCPY(req->serial, cid->serial, cid->serialSz);
         XMEMCPY(req->url, cid->url, cid->urlSz);
     }
+
+    wolfSSL_OCSP_REQUEST_free(cid);
 
     return req;
 }
