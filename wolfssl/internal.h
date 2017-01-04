@@ -1956,6 +1956,7 @@ struct WOLFSSL_CTX {
 #endif
 #ifdef KEEP_OUR_CERT
     WOLFSSL_X509*    ourCert;     /* keep alive a X509 struct of cert */
+    int              ownOurCert;  /* Dispose of certificate if we own */
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
     void*       heap;             /* for user memory overrides */
@@ -2914,6 +2915,9 @@ struct WOLFSSL {
 #ifdef OPENSSL_EXTRA
     byte*           ocspResp;
     int             ocspRespSz;
+#ifdef WOLFSSL_NGINX
+    char*           url;
+#endif
 #endif
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */

@@ -244,6 +244,114 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
     return ret;
 }
 
+static int CheckResponse(WOLFSSL_OCSP* ocsp, byte* response, int length,
+                         buffer* responseBuffer, CertStatus* status,
+                         OcspEntry* entry, OcspRequest* ocspRequest)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    CertStatus* newStatus;
+    OcspResponse* ocspResponse;
+#else
+    CertStatus newStatus[1];
+    OcspResponse ocspResponse[1];
+#endif
+    int ret;
+
+#ifdef WOLFSSL_SMALL_STACK
+    newStatus = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    ocspResponse = (OcspResponse*)XMALLOC(sizeof(OcspResponse), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (newStatus == NULL || ocspResponse == NULL) {
+        if (newStatus) XFREE(newStatus, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (ocspResponse) XFREE(ocspResponse, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+        XFREE(request, NULL, DYNAMIC_TYPE_OCSP);
+
+        WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
+        return MEMORY_E;
+    }
+#endif
+    XMEMSET(newStatus, 0, sizeof(CertStatus));
+
+    InitOcspResponse(ocspResponse, newStatus, response, length);
+    ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap);
+
+    /* TODO: should failure in decode return something else? */
+    if (ret < 0 || ocspResponse->responseStatus != OCSP_SUCCESSFUL) {
+        ret = OCSP_LOOKUP_FAIL;
+        goto end;
+    }
+    if (ocspRequest != NULL) {
+        ret = CompareOcspReqResp(ocspRequest, ocspResponse);
+        if (ret != 0) {
+            ret = OCSP_LOOKUP_FAIL;
+            goto end;
+        }
+    }
+
+    if (responseBuffer) {
+        responseBuffer->buffer = (byte*)XMALLOC(length, ocsp->cm->heap,
+                                           DYNAMIC_TYPE_TMP_BUFFER);
+
+        if (responseBuffer->buffer) {
+            responseBuffer->length = length;
+            XMEMCPY(responseBuffer->buffer, response, length);
+        }
+    }
+
+    ret = xstat2err(ocspResponse->status->status);
+
+    if (wc_LockMutex(&ocsp->ocspLock) != 0) {
+        ret = BAD_MUTEX_E;
+        goto end;
+    }
+
+    if (status != NULL) {
+        if (status->rawOcspResponse)
+            XFREE(status->rawOcspResponse, ocsp->cm->heap,
+                                      DYNAMIC_TYPE_OCSP_STATUS);
+
+        /* Replace existing certificate entry with updated */
+        XMEMCPY(status, newStatus, sizeof(CertStatus));
+    }
+    else {
+        /* Save new certificate entry */
+        status = (CertStatus*)XMALLOC(sizeof(CertStatus),
+                      ocsp->cm->heap, DYNAMIC_TYPE_OCSP_STATUS);
+        if (status != NULL) {
+            XMEMCPY(status, newStatus, sizeof(CertStatus));
+            status->next  = entry->status;
+            entry->status = status;
+            entry->totalStatus++;
+        }
+    }
+
+    if (status && responseBuffer && responseBuffer->buffer) {
+        status->rawOcspResponse = (byte*)XMALLOC(
+                                   responseBuffer->length,
+                                   ocsp->cm->heap,
+                                   DYNAMIC_TYPE_OCSP_STATUS);
+
+        if (status->rawOcspResponse) {
+            status->rawOcspResponseSz = responseBuffer->length;
+            XMEMCPY(status->rawOcspResponse,
+                    responseBuffer->buffer,
+                    responseBuffer->length);
+        }
+    }
+
+    wc_UnLockMutex(&ocsp->ocspLock);
+
+end:
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(newStatus,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ocspResponse, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+    return ret;
+}
+
 int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                                                       buffer* responseBuffer)
 {
@@ -256,23 +364,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     int         urlSz          = 0;
     int         ret            = -1;
 
-#ifdef WOLFSSL_SMALL_STACK
-    CertStatus* newStatus;
-    OcspResponse* ocspResponse;
-#else
-    CertStatus newStatus[1];
-    OcspResponse ocspResponse[1];
-#endif
-
     WOLFSSL_ENTER("CheckOcspRequest");
-
-#ifdef WOLFSSL_NGINX
-    if (ocsp->statusCb != NULL && ocspRequest->ssl != NULL) {
-        ret = ocsp->statusCb(ocspRequest->ssl, NULL);
-        if (ret == 0)
-            return 0;
-    }
-#endif
 
     if (responseBuffer) {
         responseBuffer->buffer = NULL;
@@ -287,6 +379,22 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     if (ret != OCSP_INVALID_STATUS)
         return ret;
 
+#ifdef WOLFSSL_NGINX
+    if (ocsp->statusCb != NULL && ocspRequest->ssl != NULL) {
+        ret = ocsp->statusCb(ocspRequest->ssl, NULL);
+        if (ret == 0) {
+            ret = wolfSSL_get_ocsp_response(ocspRequest->ssl, &response);
+            ret = CheckResponse(ocsp, response, ret, responseBuffer, status,
+                                entry, NULL);
+            if (response != NULL)
+                XFREE(response, NULL, DYNAMIC_TYPE_OPENSSL);
+            return ret;
+        }
+        url = wolfSSL_get_ocsp_url(ocspRequest->ssl);
+        urlSz = XSTRLEN(url);
+    }
+#endif
+
     if (ocsp->cm->ocspUseOverrideURL) {
         url = ocsp->cm->ocspOverrideURL;
         if (url != NULL && url[0] != '\0')
@@ -298,7 +406,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         url = (const char *)ocspRequest->url;
         urlSz = ocspRequest->urlSz;
     }
-    else {
+    else if (url == NULL) {
         /* cert doesn't have extAuthInfo, assuming CERT_GOOD */
         return 0;
     }
@@ -309,23 +417,6 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         return MEMORY_ERROR;
     }
 
-#ifdef WOLFSSL_SMALL_STACK
-    newStatus = (CertStatus*)XMALLOC(sizeof(CertStatus), NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-    ocspResponse = (OcspResponse*)XMALLOC(sizeof(OcspResponse), NULL,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (newStatus == NULL || ocspResponse == NULL) {
-        if (newStatus)    XFREE(newStatus,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (ocspResponse) XFREE(ocspResponse, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-        XFREE(request, NULL, DYNAMIC_TYPE_OCSP);
-
-        WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
-        return MEMORY_E;
-    }
-#endif
-
     requestSz = EncodeOcspRequest(ocspRequest, request, requestSz);
 
     if (ocsp->cm->ocspIOCb)
@@ -335,79 +426,11 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     XFREE(request, ocsp->cm->heap, DYNAMIC_TYPE_OCSP);
 
     if (ret >= 0 && response) {
-        XMEMSET(newStatus, 0, sizeof(CertStatus));
-
-        InitOcspResponse(ocspResponse, newStatus, response, ret);
-        ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap);
-
-        /* TODO: should failure in decode return something else? */
-        if (ret < 0 || ocspResponse->responseStatus != OCSP_SUCCESSFUL)
-            ret = OCSP_LOOKUP_FAIL;
-        else {
-            if (CompareOcspReqResp(ocspRequest, ocspResponse) == 0) {
-                if (responseBuffer) {
-                    responseBuffer->buffer = (byte*)XMALLOC(ret, ocsp->cm->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-
-                    if (responseBuffer->buffer) {
-                        responseBuffer->length = ret;
-                        XMEMCPY(responseBuffer->buffer, response, ret);
-                    }
-                }
-
-                ret = xstat2err(ocspResponse->status->status);
-
-                if (wc_LockMutex(&ocsp->ocspLock) != 0)
-                    ret = BAD_MUTEX_E;
-                else {
-                    if (status != NULL) {
-                        if (status->rawOcspResponse)
-                            XFREE(status->rawOcspResponse, ocsp->cm->heap,
-                                                      DYNAMIC_TYPE_OCSP_STATUS);
-
-                        /* Replace existing certificate entry with updated */
-                        XMEMCPY(status, newStatus, sizeof(CertStatus));
-                    }
-                    else {
-                        /* Save new certificate entry */
-                        status = (CertStatus*)XMALLOC(sizeof(CertStatus),
-                                      ocsp->cm->heap, DYNAMIC_TYPE_OCSP_STATUS);
-                        if (status != NULL) {
-                            XMEMCPY(status, newStatus, sizeof(CertStatus));
-                            status->next  = entry->status;
-                            entry->status = status;
-                            entry->totalStatus++;
-                        }
-                    }
-
-                    if (status && responseBuffer && responseBuffer->buffer) {
-                        status->rawOcspResponse = (byte*)XMALLOC(
-                                                   responseBuffer->length,
-                                                   ocsp->cm->heap,
-                                                   DYNAMIC_TYPE_OCSP_STATUS);
-
-                        if (status->rawOcspResponse) {
-                            status->rawOcspResponseSz = responseBuffer->length;
-                            XMEMCPY(status->rawOcspResponse,
-                                    responseBuffer->buffer,
-                                    responseBuffer->length);
-                        }
-                    }
-
-                    wc_UnLockMutex(&ocsp->ocspLock);
-                }
-            }
-            else
-                ret = OCSP_LOOKUP_FAIL;
-        }
+        ret = CheckResponse(ocsp, response, ret, responseBuffer, status, entry,
+                            ocspRequest);
     }
     else
         ret = OCSP_LOOKUP_FAIL;
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(newStatus,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(ocspResponse, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
 
     if (response != NULL && ocsp->cm->ocspRespFreeCb)
         ocsp->cm->ocspRespFreeCb(ocsp->cm->ocspIOCtx, response);
@@ -507,15 +530,25 @@ void wolfSSL_OCSP_BASICRESP_free(WOLFSSL_OCSP_BASICRESP* basicResponse)
     wolfSSL_OCSP_RESPONSE_free(basicResponse);
 }
 
+/* Signature verified in DecodeBasicOcspResponse.
+ * But no store available to verify certificate. */
 int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
     STACK_OF(WOLFSSL_X509) *certs, WOLFSSL_X509_STORE *st, unsigned long flags)
 {
-    /* Signature and certificate verified in DecodeBasicOcspResponse. */
-    (void)bs;
+    DecodedCert cert;
+    int         ret = SSL_SUCCESS;
+
     (void)certs;
-    (void)st;
-    (void)flags;
-    return SSL_SUCCESS;
+
+    if (flags & OCSP_NOVERIFY)
+        return SSL_SUCCESS;
+
+    InitDecodedCert(&cert, bs->cert, bs->certSz, NULL);
+    if (ParseCertRelative(&cert, CERT_TYPE, VERIFY, st->cm) < 0)
+        ret = SSL_FAILURE;
+    FreeDecodedCert(&cert);
+
+    return ret;
 }
 
 void wolfSSL_OCSP_RESPONSE_free(OcspResponse* response)

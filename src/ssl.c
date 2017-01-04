@@ -4208,9 +4208,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         else if (ctx) {
             FreeDer(&ctx->certificate); /* Make sure previous is free'd */
         #ifdef KEEP_OUR_CERT
-            FreeX509(ctx->ourCert);
             if (ctx->ourCert) {
-                XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+                if (ctx->ownOurCert) {
+                    FreeX509(ctx->ourCert);
+                    XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+                }
                 ctx->ourCert = NULL;
             }
         #endif
@@ -13258,6 +13260,7 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
                 ssl->ctx->ourCert = wolfSSL_X509_d2i(NULL,
                                                ssl->ctx->certificate->buffer,
                                                ssl->ctx->certificate->length);
+                ssl->ctx->ownOurCert = 1;
             }
             return ssl->ctx->ourCert;
         }
@@ -21156,8 +21159,12 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         XMEMCPY(ctx->certificate->buffer, x->derCert->buffer,
                 x->derCert->length);
 #ifdef KEEP_OUR_CERT
-        ctx->ourCert = wolfSSL_X509_d2i(NULL, x->derCert->buffer,
-                                        x->derCert->length);
+        if (ctx->ourCert != NULL && ctx->ownOurCert) {
+            FreeX509(ctx->ourCert);
+            XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+        }
+        ctx->ourCert = x;
+        ctx->ownOurCert = 0;
 #endif
 
         switch (x->pubKeyOID) {
@@ -23001,6 +23008,29 @@ int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *ctx, int (*cb)(
 #endif /* HAVE_SESSION_TICKET */
 
 #ifdef HAVE_OCSP
+/* Not an OpenSSL API. */
+int wolfSSL_get_ocsp_response(WOLFSSL* ssl, byte** response)
+{
+    *response = ssl->ocspResp;
+    return ssl->ocspRespSz;
+}
+
+/* Not an OpenSSL API. */
+char* wolfSSL_get_ocsp_url(WOLFSSL* ssl)
+{
+    return ssl->url;
+}
+
+/* Not an OpenSSL API. */
+int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url)
+{
+    if (ssl == NULL)
+        return SSL_FAILURE;
+
+    ssl->url = url;
+    return SSL_SUCCESS;
+}
+
 static INLINE void ato24(const byte* c, word32* u24)
 {
     *u24 = (c[0] << 16) | (c[1] << 8) | c[2];
@@ -23060,6 +23090,9 @@ int wolfSSL_CTX_set_tlsext_status_cb(WOLFSSL_CTX* ctx,
 {
     if (ctx == NULL)
         return SSL_FAILURE;
+
+    /* Ensure stapling is on for callback to be used. */
+    wolfSSL_CTX_EnableOCSPStapling(ctx);
 
     ctx->cm->ocsp_stapling->statusCb = cb;
     return SSL_SUCCESS;

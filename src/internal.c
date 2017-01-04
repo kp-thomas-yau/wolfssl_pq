@@ -1467,8 +1467,8 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     FreeDer(&ctx->privateKey);
     FreeDer(&ctx->certificate);
     #ifdef KEEP_OUR_CERT
-        FreeX509(ctx->ourCert);
-        if (ctx->ourCert) {
+        if (ctx->ourCert && ctx->ownOurCert) {
+            FreeX509(ctx->ourCert);
             XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
         }
     #endif
@@ -7270,10 +7270,15 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             InitOcspResponse(response, status, input +*inOutIdx, status_length);
 
-            if ((OcspResponseDecode(response, ssl->ctx->cm, ssl->heap) != 0)
-            ||  (response->responseStatus != OCSP_SUCCESSFUL)
-            ||  (response->status->status != CERT_GOOD)
-            ||  (CompareOcspReqResp(request, response) != 0))
+            if (OcspResponseDecode(response, ssl->ctx->cm, ssl->heap) != 0)
+                ret = BAD_CERTIFICATE_STATUS_ERROR;
+            else if (CompareOcspReqResp(request, response) != 0)
+                ret = BAD_CERTIFICATE_STATUS_ERROR;
+            else if (response->responseStatus != OCSP_SUCCESSFUL)
+                ret = BAD_CERTIFICATE_STATUS_ERROR;
+            else if (response->status->status == CERT_REVOKED)
+                ret = OCSP_CERT_REVOKED;
+            else if (response->status->status != CERT_GOOD)
                 ret = BAD_CERTIFICATE_STATUS_ERROR;
 
             *inOutIdx += status_length;

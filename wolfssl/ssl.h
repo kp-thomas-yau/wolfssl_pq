@@ -2180,6 +2180,13 @@ WOLFSSL_API int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events, int
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef WOLFSSL_NGINX
+/* Not an OpenSSL API. */
+WOLFSSL_LOCAL int wolfSSL_get_ocsp_response(WOLFSSL* ssl, byte** response);
+/* Not an OpenSSL API. */
+WOLFSSL_LOCAL char* wolfSSL_get_ocsp_url(WOLFSSL* ssl);
+/* Not an OpenSSL API. */
+WOLFSSL_API int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url);
+
 WOLFSSL_API void wolfSSL_OPENSSL_config(char *config_name);
 WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a,
     void *b, void *c);
