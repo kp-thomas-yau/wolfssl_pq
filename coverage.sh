@@ -5,6 +5,8 @@
 # The configuration must have used --enable-coverage.
 #
 
+WOLFSSL_PATH=`realpath $0`
+WOLFSSL_PATH=`dirname $WOLFSSL_PATH`
 COVERAGE_HTML=../coverage
 COVERAGE_INFO=../coverage.info
 
@@ -32,11 +34,13 @@ if [ ! -d "$COVERAGE_HTML" ]; then
 fi
 
 make clean
+find . -name '*.gcda' | xargs rm -f
+find . -name '*.gcno' | xargs rm -f
 make test
 
-lcov --capture --directory . --output-file $COVERAGE_INFO
+lcov --rc lcov_branch_coverage=1 --capture --list-full-path --directory src --directory wolfcrypt/src --directory wolfssl --output-file $COVERAGE_INFO
 
-genhtml $COVERAGE_INFO --output-directory $COVERAGE_HTML
+genhtml --rc lcov_branch_coverage=1 --prefix $WOLFSSL_PATH --branch-coverage $COVERAGE_INFO --output-directory $COVERAGE_HTML
 
 OUTDIR=`readlink -m $PWD/$COVERAGE_HTML`
 echo
