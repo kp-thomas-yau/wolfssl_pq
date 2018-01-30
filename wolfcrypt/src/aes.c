@@ -5811,24 +5811,24 @@ static void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
     "vpclmulqdq	$0x01, "#a", "#b", %%xmm6\n\t"           \
     "vpclmulqdq	$0x00, "#a", "#b", %%xmm5\n\t"           \
     "vpclmulqdq	$0x11, "#a", "#b", %%xmm8\n\t"           \
-    "vpclmulqdq	$0x00, "#a", "#a", %%xmm9\n\t"           \
-    "vpclmulqdq	$0x11, "#a", "#a", %%xmm10\n\t"          \
+    "vpclmulqdq	$0x00, "#b", "#b", %%xmm9\n\t"           \
+    "vpclmulqdq	$0x11, "#b", "#b", %%xmm10\n\t"          \
     "vpxor	%%xmm6, %%xmm7, %%xmm7\n\t"              \
     "vpslldq	$8, %%xmm7, %%xmm6\n\t"                  \
     "vpsrldq	$8, %%xmm7, %%xmm7\n\t"                  \
     "vpxor	%%xmm5, %%xmm6, %%xmm6\n\t"              \
-    "vpclmulqdq	$0x10, "#mod128", %%xmm10, %%xmm4\n\t"   \
+    "vpclmulqdq	$0x10, "#mod128", %%xmm9, %%xmm4\n\t"    \
     "vpclmulqdq	$0x10, "#mod128", %%xmm6, %%xmm5\n\t"    \
     "vpshufd	$0x4e, %%xmm6, %%xmm6\n\t"               \
-    "vpshufd	$0x4e, %%xmm10, %%xmm10\n\t"             \
+    "vpshufd	$0x4e, %%xmm9, %%xmm9\n\t"               \
     "vpxor	%%xmm5, %%xmm6, %%xmm6\n\t"              \
-    "vpxor	%%xmm4, %%xmm10, %%xmm10\n\t"            \
+    "vpxor	%%xmm4, %%xmm9, %%xmm9\n\t"              \
     "vpclmulqdq	$0x10, "#mod128", %%xmm6, %%xmm5\n\t"    \
-    "vpclmulqdq	$0x10, "#mod128", %%xmm10, %%xmm4\n\t"   \
+    "vpclmulqdq	$0x10, "#mod128", %%xmm9, %%xmm4\n\t"    \
     "vpshufd	$0x4e, %%xmm6, %%xmm6\n\t"               \
-    "vpshufd	$0x4e, %%xmm10, %%xmm10\n\t"             \
+    "vpshufd	$0x4e, %%xmm9, %%xmm9\n\t"               \
     "vpxor	%%xmm7, %%xmm8, %%xmm8\n\t"              \
-    "vpxor	%%xmm4, %%xmm10, %%xmm10\n\t"            \
+    "vpxor	%%xmm4, %%xmm9, %%xmm9\n\t"              \
     "vpxor	%%xmm8, %%xmm6, %%xmm6\n\t"              \
     "vpxor	%%xmm10, %%xmm9, "#rs"\n\t"              \
     "vpxor	%%xmm5, %%xmm6, "#rm"\n\t"
