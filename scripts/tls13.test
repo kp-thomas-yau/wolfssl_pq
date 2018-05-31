@@ -138,6 +138,38 @@ if [ $? -ne 0 ]; then
     fi
     echo ""
 
+    # TLS 1.2 server / TLS 1.3 downgrade client.
+    echo -e "\n\nTLS v1.3 client downgrading to TLS v1.2"
+    port=0
+    ./examples/server/server -v 3 -R $ready_file -p $port &
+    server_pid=$!
+    create_port
+    ./examples/client/client -v d -p $port
+    RESULT=$?
+    remove_ready_file
+    if [ $RESULT -ne 0 ]; then
+        echo -e "\n\nIssue with TLS v1.3 client downgrading to TLS v1.2"
+        do_cleanup
+        exit 1
+    fi
+    echo ""
+
+    # TLS 1.3 downgrade server / TLS 1.2 client.
+    echo -e "\n\nTLS v1.3 server downgrading to TLS v1.2"
+    port=0
+    ./examples/server/server -v d -R $ready_file -p $port &
+    server_pid=$!
+    create_port
+    ./examples/client/client -v 3 -p $port
+    RESULT=$?
+    remove_ready_file
+    if [ $RESULT -ne 0 ]; then
+        echo -e "\n\nIssue with TLS v1.3 server downgrading to TLS v1.2"
+        do_cleanup
+        exit 1
+    fi
+    echo ""
+
     echo "Find usable TLS 1.2 cipher suite"
     for CS in ECDHE-RSA-AES128-GCM-SHA256 DHE-RSA-AES128-GCM-SHA256
     do
@@ -169,6 +201,41 @@ if [ $? -ne 0 ]; then
     else
         echo "No usable TLS 1.2 cipher suite found"
     fi
+fi
+
+./examples/client/client -v 2 2>&1 | grep -- 'Bad SSL version'
+if [ $? -ne 0 ]; then
+    # TLS 1.1 server / TLS 1.3 client
+    echo -e "\n\nTLS v1.1 server downgrading TLS v1.3 client"
+    port=0
+    ./examples/server/server -v 2 -R $ready_file -p $port &
+    server_pid=$!
+    create_port
+    ./examples/client/client -v d -p $port
+    RESULT=$?
+    remove_ready_file
+    if [ $RESULT -ne 0 ]; then
+        echo -e "\n\nIssue with TLS v1.1 server downgrading TLS v1.3 client"
+        do_cleanup
+        exit 1
+    fi
+    echo ""
+
+    # TLS 1.3 server / TLS 1.1 client
+    echo -e "\n\nTLS v1.3 server downgrading to TLS v1.1 client"
+    port=0
+    ./examples/server/server -v d -R $ready_file -p $port &
+    server_pid=$!
+    create_port
+    ./examples/client/client -v 2 -p $port
+    RESULT=$?
+    remove_ready_file
+    if [ $RESULT -ne 0 ]; then
+        echo -e "\n\nIssue with TLS v1.3 server downgrading to TLS v1.1 client"
+        do_cleanup
+        exit 1
+    fi
+    echo ""
 fi
 
 echo -e "\nALL Tests Passed"

@@ -302,8 +302,8 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
     word32      hashSz = 0;
     const byte* protocol;
     word32      protocolLen;
-    int         digestAlg = -1;
-    int         ret = BAD_FUNC_ARG;
+    int         digestAlg = WC_HASH_TYPE_NONE;
+    int         ret = 0;
 
     switch (hashAlgo) {
 #ifndef NO_WOLFSSL_SHA256
@@ -345,32 +345,31 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
             digestAlg = WC_SHA512;
             break;
 #endif
-        default:
-            digestAlg = -1;
-            break;
     }
 
-    if (digestAlg < 0)
-        return HASH_TYPE_E;
+    if (ret == 0) {
+        switch (ssl->version.minor) {
+            case TLSv1_3_MINOR:
+                protocol = tls13ProtocolLabel;
+                protocolLen = TLS13_PROTOCOL_LABEL_SZ;
+                break;
 
-    if (ret != 0)
-        return ret;
-
-    switch (ssl->version.minor) {
-        case TLSv1_3_MINOR:
-            protocol = tls13ProtocolLabel;
-            protocolLen = TLS13_PROTOCOL_LABEL_SZ;
-            break;
-
-        default:
-            return VERSION_ERROR;
+            default:
+                ret = VERSION_ERROR;
+                break;
+        }
     }
-    if (outputLen == -1)
-        outputLen = hashSz;
 
-    return HKDF_Expand_Label(output, outputLen, secret, hashSz,
-                             protocol, protocolLen, label, labelLen,
-                             hash, hashSz, digestAlg);
+    if (ret == 0) {
+        if (outputLen == -1)
+            outputLen = hashSz;
+
+        ret = HKDF_Expand_Label(output, outputLen, secret, hashSz, protocol,
+                                protocolLen, label, labelLen, hash, hashSz,
+                                digestAlg);
+    }
+
+    return ret;
 }
 #endif
 
@@ -426,21 +425,23 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
             break;
         #endif
     }
-    if (ret != 0)
-        return ret;
 
-    /* Only one protocol version defined at this time. */
-    protocol = tls13ProtocolLabel;
-    protocolLen = TLS13_PROTOCOL_LABEL_SZ;
+    if (ret == 0) {
+        /* Only one protocol version defined at this time. */
+        protocol = tls13ProtocolLabel;
+        protocolLen = TLS13_PROTOCOL_LABEL_SZ;
 
-    if (outputLen == -1)
-        outputLen = hashSz;
-    if (includeMsgs)
-        hashOutSz = hashSz;
+        if (outputLen == -1)
+            outputLen = hashSz;
+        if (includeMsgs)
+            hashOutSz = hashSz;
 
-    return HKDF_Expand_Label(output, outputLen, secret, hashSz,
-                             protocol, protocolLen, label, labelLen,
-                             hash, hashOutSz, digestAlg);
+        ret = HKDF_Expand_Label(output, outputLen, secret, hashSz, protocol,
+                                protocolLen, label, labelLen, hash, hashOutSz,
+                                digestAlg);
+    }
+
+    return ret;
 }
 
 
@@ -809,20 +810,21 @@ static int DeriveHandshakeSecret(WOLFSSL* ssl)
             ssl->specs.mac_algorithm);
 #else
     byte key[WC_MAX_DIGEST_SIZE];
-    int ret;
+    int  ret;
 
     WOLFSSL_MSG("Derive Handshake Secret");
 
-    ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->secret,
-                        derivedLabel, DERIVED_LABEL_SZ,
-                        NULL, 0, ssl->specs.mac_algorithm);
-    if (ret != 0)
-        return ret;
+    ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->secret, derivedLabel,
+                           DERIVED_LABEL_SZ, NULL, 0, ssl->specs.mac_algorithm);
+    if (ret == 0) {
+        ret = Tls13_HKDF_Extract(ssl->arrays->preMasterSecret, key,
+                                 ssl->specs.hash_size,
+                                 ssl->arrays->preMasterSecret,
+                                 ssl->arrays->preMasterSz,
+                                 ssl->specs.mac_algorithm);
+    }
 
-    return Tls13_HKDF_Extract(ssl->arrays->preMasterSecret,
-            key, ssl->specs.hash_size,
-            ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
-            ssl->specs.mac_algorithm);
+    return ret;
 #endif
 }
 
@@ -839,19 +841,20 @@ static int DeriveMasterSecret(WOLFSSL* ssl)
             ssl->arrays->masterSecret, 0, ssl->specs.mac_algorithm);
 #else
     byte key[WC_MAX_DIGEST_SIZE];
-    int ret;
+    int  ret;
 
     WOLFSSL_MSG("Derive Master Secret");
 
-    ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->preMasterSecret,
-                        derivedLabel, DERIVED_LABEL_SZ,
-                        NULL, 0, ssl->specs.mac_algorithm);
-    if (ret != 0)
-        return ret;
+    ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->preMasterSecret, derivedLabel,
+                           DERIVED_LABEL_SZ, NULL, 0, ssl->specs.mac_algorithm);
+    if (ret == 0) {
+        ret = Tls13_HKDF_Extract(ssl->arrays->masterSecret, key,
+                                 ssl->specs.hash_size,
+                                 ssl->arrays->masterSecret, 0,
+                                 ssl->specs.mac_algorithm);
+    }
 
-    return Tls13_HKDF_Extract(ssl->arrays->masterSecret,
-            key, ssl->specs.hash_size,
-            ssl->arrays->masterSecret, 0, ssl->specs.mac_algorithm);
+    return ret;
 #endif
 }
 
@@ -872,6 +875,7 @@ static const byte resumptionLabel[RESUMPTION_LABEL_SZ+1] = "resumption";
 static int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen,
                                byte* secret)
 {
+    int         ret;
     int         digestAlg;
     /* Only one protocol version defined at this time. */
     const byte* protocol    = tls13ProtocolLabel;
@@ -879,33 +883,39 @@ static int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen,
 
     WOLFSSL_MSG("Derive Resumption PSK");
 
+    ret = BAD_FUNC_ARG;
     switch (ssl->specs.mac_algorithm) {
         #ifndef NO_SHA256
         case sha256_mac:
             digestAlg = WC_SHA256;
+            ret = 0;
             break;
         #endif
 
         #ifdef WOLFSSL_SHA384
         case sha384_mac:
             digestAlg = WC_SHA384;
+            ret = 0;
             break;
         #endif
 
         #ifdef WOLFSSL_TLS13_SHA512
         case sha512_mac:
             digestAlg = WC_SHA512;
+            ret = 0;
             break;
         #endif
-
-        default:
-            return BAD_FUNC_ARG;
     }
 
-    return HKDF_Expand_Label(secret, ssl->specs.hash_size,
-                             ssl->session.masterSecret, ssl->specs.hash_size,
-                             protocol, protocolLen, resumptionLabel,
-                             RESUMPTION_LABEL_SZ, nonce, nonceLen, digestAlg);
+    if (ret == 0) {
+        ret = HKDF_Expand_Label(secret, ssl->specs.hash_size,
+                                ssl->session.masterSecret, ssl->specs.hash_size,
+                                protocol, protocolLen, resumptionLabel,
+                                RESUMPTION_LABEL_SZ, nonce, nonceLen,
+                                digestAlg);
+    }
+
+    return ret;
 }
 #endif /* HAVE_SESSION_TICKET */
 #endif /* WOLFSSL_TLS13_DRAFT_18 */
@@ -950,11 +960,10 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
             break;
     #endif /* WOLFSSL_TLS13_SHA512 */
     }
-    if (ret != 0)
-        return ret;
 
     /* Calculate the verify data. */
-    ret = wc_HmacInit(&verifyHmac, ssl->heap, ssl->devId);
+    if (ret == 0)
+        ret = wc_HmacInit(&verifyHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
         ret = wc_HmacSetKey(&verifyHmac, hashType, key, ssl->specs.hash_size);
         if (ret == 0)
@@ -999,7 +1008,7 @@ static const byte writeIVLabel[WRITE_IV_LABEL_SZ+1]   = "iv";
  */
 static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 {
-    int   ret = BAD_FUNC_ARG; /* Assume failure */
+    int   ret = 0;
     int   i = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte* key_dig;
@@ -1014,9 +1023,8 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
         return MEMORY_E;
 #endif
 
-    if (side == ENCRYPT_AND_DECRYPT_SIDE) {
+    if (side == ENCRYPT_AND_DECRYPT_SIDE)
         provision = PROVISION_CLIENT_SERVER;
-    }
     else {
         provision = ((ssl->options.side != WOLFSSL_CLIENT_END) ^
                      (side == ENCRYPT_SIDE_ONLY)) ? PROVISION_CLIENT :
@@ -1028,8 +1036,6 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 #ifdef WOLFSSL_EARLY_DATA
         case early_data_key:
             ret = DeriveEarlyTrafficSecret(ssl, ssl->arrays->clientSecret);
-            if (ret != 0)
-                goto end;
             break;
 #endif
 
@@ -1037,96 +1043,71 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
             if (provision & PROVISION_CLIENT) {
                 ret = DeriveClientHandshakeSecret(ssl,
                                                   ssl->arrays->clientSecret);
-                if (ret != 0)
-                    goto end;
             }
-            if (provision & PROVISION_SERVER) {
+            if (ret == 0 && provision & PROVISION_SERVER) {
                 ret = DeriveServerHandshakeSecret(ssl,
                                                   ssl->arrays->serverSecret);
-                if (ret != 0)
-                    goto end;
             }
             break;
 
         case traffic_key:
-            if (provision & PROVISION_CLIENT) {
+            if (provision & PROVISION_CLIENT)
                 ret = DeriveClientTrafficSecret(ssl, ssl->arrays->clientSecret);
-                if (ret != 0)
-                    goto end;
-            }
-            if (provision & PROVISION_SERVER) {
+            if (ret == 0 && provision & PROVISION_SERVER)
                 ret = DeriveServerTrafficSecret(ssl, ssl->arrays->serverSecret);
-                if (ret != 0)
-                    goto end;
-            }
             break;
 
         case update_traffic_key:
-            if (provision & PROVISION_CLIENT) {
+            if (provision & PROVISION_CLIENT)
                 ret = DeriveTrafficSecret(ssl, ssl->arrays->clientSecret);
-                if (ret != 0)
-                    goto end;
-            }
-            if (provision & PROVISION_SERVER) {
+            if (ret == 0 && provision & PROVISION_SERVER)
                 ret = DeriveTrafficSecret(ssl, ssl->arrays->serverSecret);
-                if (ret != 0)
-                    goto end;
-            }
             break;
     }
 
-    if (!store)
-        goto end;
+    if (ret == 0 && store) {
+        /* Key data = client key | server key | client IV | server IV */
 
-    /* Key data = client key | server key | client IV | server IV */
+        if (provision & PROVISION_CLIENT) {
+            /* Derive the client key.  */
+            WOLFSSL_MSG("Derive Client Key");
+            ret = DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
+                            ssl->arrays->clientSecret, writeKeyLabel,
+                            WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0);
+            i += ssl->specs.key_size;
+        }
 
-    if (provision & PROVISION_CLIENT) {
-        /* Derive the client key.  */
-        WOLFSSL_MSG("Derive Client Key");
-        ret = DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
-                        ssl->arrays->clientSecret, writeKeyLabel,
-                        WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0);
-        if (ret != 0)
-            goto end;
-        i += ssl->specs.key_size;
+        if (ret == 0 && provision & PROVISION_SERVER) {
+            /* Derive the server key.  */
+            WOLFSSL_MSG("Derive Server Key");
+            ret = DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
+                            ssl->arrays->serverSecret, writeKeyLabel,
+                            WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0);
+            i += ssl->specs.key_size;
+        }
+
+        if (ret == 0 && provision & PROVISION_CLIENT) {
+            /* Derive the client IV.  */
+            WOLFSSL_MSG("Derive Client IV");
+            ret = DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
+                            ssl->arrays->clientSecret, writeIVLabel,
+                            WRITE_IV_LABEL_SZ, ssl->specs.mac_algorithm, 0);
+            i += ssl->specs.iv_size;
+        }
+
+        if (ret == 0 && provision & PROVISION_SERVER) {
+            /* Derive the server IV.  */
+            WOLFSSL_MSG("Derive Server IV");
+            ret = DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
+                            ssl->arrays->serverSecret, writeIVLabel,
+                            WRITE_IV_LABEL_SZ, ssl->specs.mac_algorithm, 0);
+        }
+
+        /* Store keys and IVs but don't activate them. */
+        if (ret == 0)
+            ret = StoreKeys(ssl, key_dig, provision);
     }
 
-    if (provision & PROVISION_SERVER) {
-        /* Derive the server key.  */
-        WOLFSSL_MSG("Derive Server Key");
-        ret = DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
-                        ssl->arrays->serverSecret, writeKeyLabel,
-                        WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0);
-        if (ret != 0)
-            goto end;
-        i += ssl->specs.key_size;
-    }
-
-    if (provision & PROVISION_CLIENT) {
-        /* Derive the client IV.  */
-        WOLFSSL_MSG("Derive Client IV");
-        ret = DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
-                        ssl->arrays->clientSecret, writeIVLabel,
-                        WRITE_IV_LABEL_SZ, ssl->specs.mac_algorithm, 0);
-        if (ret != 0)
-            goto end;
-        i += ssl->specs.iv_size;
-    }
-
-    if (provision & PROVISION_SERVER) {
-        /* Derive the server IV.  */
-        WOLFSSL_MSG("Derive Server IV");
-        ret = DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
-                        ssl->arrays->serverSecret, writeIVLabel,
-                        WRITE_IV_LABEL_SZ, ssl->specs.mac_algorithm, 0);
-        if (ret != 0)
-            goto end;
-    }
-
-    /* Store keys and IVs but don't activate them. */
-    ret = StoreKeys(ssl, key_dig, provision);
-
-end:
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
 #endif
@@ -1327,12 +1308,15 @@ end:
      */
     word32 TimeNowInMilliseconds(void)
     {
+        word32         ret = GETTIME_ERROR;
         struct timeval now;
 
-        if (gettimeofday(&now, 0) < 0)
-            return GETTIME_ERROR;
-        /* Convert to milliseconds number. */
-        return (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
+        if (gettimeofday(&now, 0) >= 0) {
+           /* Convert to milliseconds number. */
+           ret = (word32)(now.tv_sec * 1000 + now.tv_usec / 1000);
+        }
+
+        return ret;
     }
 #endif
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
@@ -1349,22 +1333,24 @@ end:
  */
 static int HashInputRaw(WOLFSSL* ssl, const byte* input, int sz)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = 0;
+
+#if defined(NO_SHA256) && !defined(WOLFSSL_SHA384) && \
+                                                  !defined(WOLFSSL_TLS13_SHA512)
+#error "Digest required for hashing TLS 1.3 messages"
+#endif
 
 #ifndef NO_SHA256
-    ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, input, sz);
-    if (ret != 0)
-        return ret;
+    if (ret == 0)
+        ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, input, sz);
 #endif
 #ifdef WOLFSSL_SHA384
-    ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, input, sz);
-    if (ret != 0)
-        return ret;
+    if (ret == 0)
+        ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, input, sz);
 #endif
 #ifdef WOLFSSL_TLS13_SHA512
-    ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, input, sz);
-    if (ret != 0)
-        return ret;
+    if (ret == 0)
+        ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, input, sz);
 #endif
 
     return ret;
@@ -1385,17 +1371,18 @@ static int HashInputRaw(WOLFSSL* ssl, const byte* input, int sz)
 static int GetHandshakeHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                               byte* type, word32* size, word32 totalSz)
 {
+    int   ret = BUFFER_E;
     const byte* ptr = input + *inOutIdx;
     (void)ssl;
 
     *inOutIdx += HANDSHAKE_HEADER_SZ;
-    if (*inOutIdx > totalSz)
-        return BUFFER_E;
+    if (*inOutIdx <= totalSz) {
+        *type = ptr[0];
+        c24to32(&ptr[1], size);
+        ret = 0;
+    }
 
-    *type = ptr[0];
-    c24to32(&ptr[1], size);
-
-    return 0;
+    return ret;
 }
 
 /* Add record layer header to message.
@@ -1555,7 +1542,7 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
                                     const byte* input, word16 sz, byte* nonce,
                                     const byte* aad, word16 aadSz, byte* tag)
 {
-    int    ret    = 0;
+    int    ret = 0;
     byte   poly[CHACHA20_256_KEY_SIZE];
 
     /* Poly1305 key is 256 bits of zero encrypted with ChaCha20. */
@@ -1563,31 +1550,26 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
 
     /* Set the nonce for ChaCha and get Poly1305 key. */
     ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0);
-    if (ret != 0)
-        return ret;
     /* Create Poly1305 key using ChaCha20 keystream. */
-    ret = wc_Chacha_Process(ssl->encrypt.chacha, poly, poly, sizeof(poly));
-    if (ret != 0)
-        return ret;
+    if (ret == 0)
+        ret = wc_Chacha_Process(ssl->encrypt.chacha, poly, poly, sizeof(poly));
     /* Encrypt the plain text. */
-    ret = wc_Chacha_Process(ssl->encrypt.chacha, output, input, sz);
-    if (ret != 0) {
-        ForceZero(poly, sizeof(poly));
-        return ret;
+    if (ret == 0)
+        ret = wc_Chacha_Process(ssl->encrypt.chacha, output, input, sz);
+    /* Set key for Poly1305. */
+    if (ret == 0)
+        ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly, sizeof(poly));
+    /* Add authentication code of encrypted data to end. */
+    if (ret == 0) {
+        ret = wc_Poly1305_MAC(ssl->auth.poly1305, (byte*)aad, aadSz, output, sz,
+                              tag, POLY1305_AUTH_SZ);
     }
 
-    /* Set key for Poly1305. */
-    ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly, sizeof(poly));
-    ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
-    if (ret != 0)
-        return ret;
-    /* Add authentication code of encrypted data to end. */
-    ret = wc_Poly1305_MAC(ssl->auth.poly1305, (byte*)aad, aadSz, output, sz,
-                          tag, POLY1305_AUTH_SZ);
+    ForceZero(poly, sizeof(poly));
 
     return ret;
 }
-#endif
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
 
 /* Encrypt data for TLS v1.3.
  *
@@ -1774,36 +1756,32 @@ static int ChaCha20Poly1305_Decrypt(WOLFSSL* ssl, byte* output,
 
     /* Set nonce and get Poly1305 key. */
     ret = wc_Chacha_SetIV(ssl->decrypt.chacha, nonce, 0);
-    if (ret != 0)
-        return ret;
     /* Use ChaCha20 keystream to get Poly1305 key for tag. */
-    ret = wc_Chacha_Process(ssl->decrypt.chacha, poly, poly, sizeof(poly));
-    if (ret != 0)
-        return ret;
-
+    if (ret == 0)
+        ret = wc_Chacha_Process(ssl->decrypt.chacha, poly, poly, sizeof(poly));
     /* Set key for Poly1305. */
-    ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly, sizeof(poly));
+    if (ret == 0)
+        ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly, sizeof(poly));
     ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
-    if (ret != 0)
-        return ret;
-    /* Generate authentication tag for encrypted data. */
-    if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, (byte*)aad, aadSz,
-                                    (byte*)input, sz, tag, sizeof(tag))) != 0) {
-        return ret;
+    if (ret == 0) {
+        /* Generate authentication tag for encrypted data. */
+        ret = wc_Poly1305_MAC(ssl->auth.poly1305, (byte*)aad, aadSz,
+                                            (byte*)input, sz, tag, sizeof(tag));
     }
-
-    /* Check tag sent along with packet. */
-    if (ConstantCompare(tagIn, tag, POLY1305_AUTH_SZ) != 0) {
-        WOLFSSL_MSG("MAC did not match");
-        return VERIFY_MAC_ERROR;
+    if (ret == 0) {
+        /* Check tag sent along with packet. */
+        if (ConstantCompare(tagIn, tag, POLY1305_AUTH_SZ) != 0) {
+            WOLFSSL_MSG("MAC did not match");
+            ret = VERIFY_MAC_ERROR;
+        }
     }
-
     /* If the tag was good decrypt message. */
-    ret = wc_Chacha_Process(ssl->decrypt.chacha, output, input, sz);
+    if (ret == 0)
+        ret = wc_Chacha_Process(ssl->decrypt.chacha, output, input, sz);
 
     return ret;
 }
-#endif
+#endif /* HAVE_CHACHA && HAVE_POLY1305 */
 
 /* Decrypt data for TLS v1.3.
  *
@@ -2177,16 +2155,18 @@ exit_buildmsg:
  */
 static int FindSuite(WOLFSSL* ssl, byte* suite)
 {
+    int ret = 0;
     int i;
 
     for (i = 0; i < ssl->suites->suiteSz; i += 2) {
         if (ssl->suites->suites[i+0] == suite[0] &&
-            ssl->suites->suites[i+1] == suite[1]) {
-            return 1;
+                                         ssl->suites->suites[i+1] == suite[1]) {
+            ret = 1;
+            break;
         }
     }
 
-    return 0;
+    return ret;
 }
 #endif
 
@@ -2201,24 +2181,26 @@ static int FindSuite(WOLFSSL* ssl, byte* suite)
  */
 static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
 {
-    int ret;
+    int ret = 0;
     byte suite[2];
 
     if (ssl->options.noPskDheKe && ssl->arrays->preMasterSz != 0)
-        return PSK_KEY_ERROR;
+        ret = PSK_KEY_ERROR;
 
-    suite[0] = psk->cipherSuite0;
-    suite[1] = psk->cipherSuite;
-    if (!FindSuite(ssl, suite))
-        return PSK_KEY_ERROR;
-
-    ssl->options.cipherSuite0 = psk->cipherSuite0;
-    ssl->options.cipherSuite  = psk->cipherSuite;
-    if ((ret = SetCipherSpecs(ssl)) != 0)
-        return ret;
+    if (ret == 0) {
+        suite[0] = psk->cipherSuite0;
+        suite[1] = psk->cipherSuite;
+        if (!FindSuite(ssl, suite))
+            ret = PSK_KEY_ERROR;
+    }
+    if (ret == 0) {
+        ssl->options.cipherSuite0 = psk->cipherSuite0;
+        ssl->options.cipherSuite  = psk->cipherSuite;
+        ret = SetCipherSpecs(ssl);
+    }
 
 #ifdef HAVE_SESSION_TICKET
-    if (psk->resumption) {
+    if (ret == 0 && psk->resumption) {
     #ifdef WOLFSSL_EARLY_DATA
         if (ssl->session.maxEarlyDataSz == 0)
             ssl->earlyData = no_early_data;
@@ -2229,34 +2211,37 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
         XMEMCPY(ssl->arrays->psk_key, ssl->session.masterSecret,
                 ssl->arrays->psk_keySz);
 #else
-        if ((ret = DeriveResumptionPSK(ssl, ssl->session.ticketNonce.data,
-                    ssl->session.ticketNonce.len, ssl->arrays->psk_key)) != 0) {
-            return ret;
-        }
+        ret = DeriveResumptionPSK(ssl, ssl->session.ticketNonce.data,
+                                                   ssl->session.ticketNonce.len,
+                                                   ssl->arrays->psk_key);
 #endif
     }
 #endif
 #ifndef NO_PSK
-    if (!psk->resumption) {
+    if (ret == 0 && !psk->resumption) {
         /* Get the pre-shared key. */
         ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
                 (char *)psk->identity, ssl->arrays->client_identity,
                 MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
         if (ssl->arrays->psk_keySz == 0 ||
-                                 ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
-            return PSK_KEY_ERROR;
+                                     ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+            ret = PSK_KEY_ERROR;
         }
         /* TODO: Callback should be able to specify ciphersuite. */
 
-        if (psk->cipherSuite0 != TLS13_BYTE ||
-            psk->cipherSuite  != WOLFSSL_DEF_PSK_CIPHER) {
-            return PSK_KEY_ERROR;
+        if (ret == 0 && (psk->cipherSuite0 != TLS13_BYTE ||
+                         psk->cipherSuite  != WOLFSSL_DEF_PSK_CIPHER)) {
+            ret = PSK_KEY_ERROR;
         }
     }
 #endif
 
-    /* Derive the early secret using the PSK. */
-    return DeriveEarlySecret(ssl);
+    if (ret == 0) {
+        /* Derive the early secret using the PSK. */
+        ret = DeriveEarlySecret(ssl);
+    }
+
+    return ret;
 }
 
 /* Derive and write the binders into the ClientHello in space left when
@@ -2287,62 +2272,58 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
 
     /* Hash truncated ClientHello - up to binders. */
     ret = HashOutput(ssl, output, idx, 0);
-    if (ret != 0)
-        return ret;
 
-    current = (PreSharedKey*)ext->data;
-    /* Calculate the binder for each identity based on previous handshake data.
-     */
-    while (current != NULL) {
-        if ((ret = SetupPskKey(ssl, current)) != 0)
-            return ret;
+    if (ret == 0) {
+        current = (PreSharedKey*)ext->data;
+        /* Calculate the binder for each identity based on previous handshake
+         * data.
+         */
+        while (ret == 0 && current != NULL) {
+            ret = SetupPskKey(ssl, current);
 
-    #ifdef HAVE_SESSION_TICKET
-        if (current->resumption)
-            ret = DeriveBinderKeyResume(ssl, binderKey);
-    #endif
-    #ifndef NO_PSK
-        if (!current->resumption)
-            ret = DeriveBinderKey(ssl, binderKey);
-    #endif
-        if (ret != 0)
-            return ret;
+        #ifdef HAVE_SESSION_TICKET
+            if (ret == 0 && current->resumption)
+                ret = DeriveBinderKeyResume(ssl, binderKey);
+        #endif
+        #ifndef NO_PSK
+            if (ret == 0 && !current->resumption)
+                ret = DeriveBinderKey(ssl, binderKey);
+        #endif
 
-        /* Derive the Finished message secret. */
-        ret = DeriveFinishedSecret(ssl, binderKey,
+            /* Derive the Finished message secret. */
+            if (ret == 0) {
+                ret = DeriveFinishedSecret(ssl, binderKey,
                                              ssl->keys.client_write_MAC_secret);
-        if (ret != 0)
-            return ret;
+            }
 
-        /* Build the HMAC of the handshake message data = binder. */
-        ret = BuildTls13HandshakeHmac(ssl, ssl->keys.client_write_MAC_secret,
-            current->binder, &current->binderLen);
-        if (ret != 0)
-            return ret;
+            /* Build the HMAC of the handshake message data = binder. */
+            if (ret == 0) {
+                ret = BuildTls13HandshakeHmac(ssl,
+                                              ssl->keys.client_write_MAC_secret,
+                                              current->binder,
+                                              &current->binderLen);
+            }
 
-        current = current->next;
+            current = current->next;
+        }
     }
 
-    /* Data entered into extension, now write to message. */
-    len = TLSX_PreSharedKey_WriteBinders((PreSharedKey*)ext->data, output + idx,
-                                         client_hello);
+    if (ret == 0) {
+        /* Data entered into extension, now write to message. */
+        len = TLSX_PreSharedKey_WriteBinders((PreSharedKey*)ext->data,
+                                                    output + idx, client_hello);
 
-    /* Hash binders to complete the hash of the ClientHello. */
-    ret = HashOutputRaw(ssl, output + idx, len);
-    if (ret < 0)
-        return ret;
-
+        /* Hash binders to complete the hash of the ClientHello. */
+        ret = HashOutputRaw(ssl, output + idx, len);
+    }
     #ifdef WOLFSSL_EARLY_DATA
-    if (ssl->earlyData != no_early_data) {
-        if ((ret = SetupPskKey(ssl, (PreSharedKey*)ext->data)) != 0)
-            return ret;
-
+    if (ret == 0 && ssl->earlyData != no_early_data) {
+        ret = SetupPskKey(ssl, (PreSharedKey*)ext->data);
         /* Derive early data encryption key. */
-        ret = DeriveTls13Keys(ssl, early_data_key, ENCRYPT_SIDE_ONLY, 1);
-        if (ret != 0)
-            return ret;
-        if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
-            return ret;
+        if (ret == 0)
+            ret = DeriveTls13Keys(ssl, early_data_key, ENCRYPT_SIDE_ONLY, 1);
+        if (ret == 0)
+            ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY);
     }
     #endif
 
@@ -2569,15 +2550,16 @@ static int CreateCookie(WOLFSSL* ssl, byte* hash, byte hashSz)
     ret = wc_HmacSetKey(&cookieHmac, cookieType,
                         ssl->buffers.tls13CookieSecret.buffer,
                         ssl->buffers.tls13CookieSecret.length);
-    if (ret != 0)
-        return ret;
-    if ((ret = wc_HmacUpdate(&cookieHmac, hash, hashSz)) != 0)
-        return ret;
-    if ((ret = wc_HmacFinal(&cookieHmac, mac)) != 0)
-        return ret;
+    if (ret == 0)
+        ret = wc_HmacUpdate(&cookieHmac, hash, hashSz);
+    if (ret == 0)
+        ret = wc_HmacFinal(&cookieHmac, mac);
 
     /* The cookie data is the hash and the integrity check. */
-    return TLSX_Cookie_Use(ssl, hash, hashSz, mac, macSz, 1);
+    if (ret == 0)
+        ret = TLSX_Cookie_Use(ssl, hash, hashSz, mac, macSz, 1);
+
+    return ret;
 }
 #endif
 
@@ -2595,33 +2577,33 @@ static int RestartHandshakeHash(WOLFSSL* ssl)
     byte   hashSz = 0;
 
     ret = BuildCertHashes(ssl, &hashes);
-    if (ret != 0)
-        return ret;
-    switch (ssl->specs.mac_algorithm) {
-    #ifndef NO_SHA256
-        case sha256_mac:
-            hash = hashes.sha256;
-            break;
-    #endif
-    #ifdef WOLFSSL_SHA384
-        case sha384_mac:
-            hash = hashes.sha384;
-            break;
-    #endif
-    #ifdef WOLFSSL_TLS13_SHA512
-        case sha512_mac:
-            hash = hashes.sha512;
-            break;
-    #endif
-    }
-    hashSz = ssl->specs.hash_size;
-    AddTls13HandShakeHeader(header, hashSz, 0, 0, message_hash, ssl);
+    if (ret == 0) {
+        switch (ssl->specs.mac_algorithm) {
+        #ifndef NO_SHA256
+            case sha256_mac:
+                hash = hashes.sha256;
+                break;
+        #endif
+        #ifdef WOLFSSL_SHA384
+            case sha384_mac:
+                hash = hashes.sha384;
+                break;
+        #endif
+        #ifdef WOLFSSL_TLS13_SHA512
+            case sha512_mac:
+                hash = hashes.sha512;
+                break;
+        #endif
+        }
+        hashSz = ssl->specs.hash_size;
+        AddTls13HandShakeHeader(header, hashSz, 0, 0, message_hash, ssl);
 
-    WOLFSSL_MSG("Restart Hash");
-    WOLFSSL_BUFFER(hash, hashSz);
+        WOLFSSL_MSG("Restart Hash");
+        WOLFSSL_BUFFER(hash, hashSz);
+    }
 
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-    if (ssl->options.sendCookie) {
+    if (ret == 0 && ssl->options.sendCookie) {
         byte   cookie[OPAQUE8_LEN + WC_MAX_DIGEST_SIZE + OPAQUE16_LEN * 2];
         TLSX*  ext;
         word32 idx = 0;
@@ -2637,17 +2619,20 @@ static int RestartHandshakeHash(WOLFSSL* ssl)
             c16toa(kse->group, cookie + idx);
             idx += OPAQUE16_LEN;
         }
-        return CreateCookie(ssl, cookie, idx);
+        ret = CreateCookie(ssl, cookie, idx);
     }
+    if (!ssl->options.sendCookie)
 #endif
+    {
+        if (ret == 0)
+            ret = InitHandshakeHashes(ssl);
+        if (ret == 0)
+            ret = HashOutputRaw(ssl, header, sizeof(header));
+        if (ret == 0)
+            ret = HashOutputRaw(ssl, hash, hashSz);
+    }
 
-    ret = InitHandshakeHashes(ssl);
-    if (ret != 0)
-        return ret;
-    ret = HashOutputRaw(ssl, header, sizeof(header));
-    if (ret != 0)
-        return ret;
-    return HashOutputRaw(ssl, hash, hashSz);
+    return ret;
 }
 #endif
 
@@ -3536,7 +3521,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
  */
 static int CheckCookie(WOLFSSL* ssl, byte* cookie, byte cookieSz)
 {
-    int  ret;
+    int  ret = 0;
     byte mac[WC_MAX_DIGEST_SIZE];
     Hmac cookieHmac;
     byte cookieType;
@@ -3552,22 +3537,26 @@ static int CheckCookie(WOLFSSL* ssl, byte* cookie, byte cookieSz)
 #endif /* NO_SHA256 */
 
     if (cookieSz < ssl->specs.hash_size + macSz)
-        return HRR_COOKIE_ERROR;
-    cookieSz -= macSz;
+        ret = HRR_COOKIE_ERROR;
+    if (ret == 0) {
+        cookieSz -= macSz;
 
-    ret = wc_HmacSetKey(&cookieHmac, cookieType,
-                        ssl->buffers.tls13CookieSecret.buffer,
-                        ssl->buffers.tls13CookieSecret.length);
-    if (ret != 0)
-        return ret;
-    if ((ret = wc_HmacUpdate(&cookieHmac, cookie, cookieSz)) != 0)
-        return ret;
-    if ((ret = wc_HmacFinal(&cookieHmac, mac)) != 0)
-        return ret;
+        ret = wc_HmacSetKey(&cookieHmac, cookieType,
+                            ssl->buffers.tls13CookieSecret.buffer,
+                            ssl->buffers.tls13CookieSecret.length);
+    }
+    if (ret == 0)
+        ret = wc_HmacUpdate(&cookieHmac, cookie, cookieSz);
+    if (ret == 0)
+        ret = wc_HmacFinal(&cookieHmac, mac);
+    if (ret == 0) {
+        if (ConstantCompare(cookie + cookieSz, mac, macSz) == 0)
+            ret = cookieSz;
+        else
+            ret = HRR_COOKIE_ERROR;
+    }
 
-    if (ConstantCompare(cookie + cookieSz, mac, macSz) != 0)
-        return HRR_COOKIE_ERROR;
-    return cookieSz;
+    return ret;
 }
 
 /* Length of the KeyShare Extension */
@@ -3616,124 +3605,128 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     int    ret;
 
     cookieDataSz = ret = CheckCookie(ssl, &cookie->data, cookie->len);
-    if (ret < 0)
-        return ret;
-    hashSz = cookie->data;
-    cookieData = &cookie->data;
-    idx = OPAQUE8_LEN;
+    if (ret >= 0) {
+        hashSz = cookie->data;
+        cookieData = &cookie->data;
+        idx = OPAQUE8_LEN;
 
-    /* Restart handshake hash with synthetic message hash. */
-    AddTls13HandShakeHeader(header, hashSz, 0, 0, message_hash, ssl);
-    if ((ret = InitHandshakeHashes(ssl)) != 0)
-        return ret;
-    if ((ret = HashOutputRaw(ssl, header, sizeof(header))) != 0)
-        return ret;
-    if ((ret = HashOutputRaw(ssl, cookieData + idx, hashSz)) != 0)
-        return ret;
-
-    /* Reconstruct the HelloRetryMessage for handshake hash. */
-#ifdef WOLFSSL_TLS13_DRAFT_18
-    length = HRR_BODY_SZ + HRR_COOKIE_HDR_SZ + cookie->len;
-#else
-    length = HRR_BODY_SZ - ID_LEN + ssl->session.sessionIDSz +
-             HRR_COOKIE_HDR_SZ + cookie->len;
-    length += HRR_VERSIONS_SZ;
-#endif
-    if (cookieDataSz > hashSz + OPAQUE16_LEN) {
-        keyShareExt = 1;
-        length += HRR_KEY_SHARE_SZ;
+        /* Restart handshake hash with synthetic message hash. */
+        AddTls13HandShakeHeader(header, hashSz, 0, 0, message_hash, ssl);
+        ret = InitHandshakeHashes(ssl);
     }
-#ifdef WOLFSSL_TLS13_DRAFT_18
-    AddTls13HandShakeHeader(hrr, length, 0, 0, hello_retry_request, ssl);
+    if (ret == 0)
+        ret = HashOutputRaw(ssl, header, sizeof(header));
+    if (ret == 0)
+        ret = HashOutputRaw(ssl, cookieData + idx, hashSz);
 
-    idx += hashSz;
-    hrrIdx = HANDSHAKE_HEADER_SZ;
-    /* TODO: [TLS13] Replace existing code with code in comment.
-     * Use the TLS v1.3 draft version for now.
-     *
-     * Change to:
-     * hrr[hrrIdx++] = ssl->version.major;
-     * hrr[hrrIdx++] = ssl->version.minor;
-     */
-    /* The negotiated protocol version. */
-    hrr[hrrIdx++] = TLS_DRAFT_MAJOR;
-    hrr[hrrIdx++] = TLS_DRAFT_MINOR;
-    /* Cipher Suite */
-    hrr[hrrIdx++] = cookieData[idx++];
-    hrr[hrrIdx++] = cookieData[idx++];
+    if (ret == 0) {
+        /* Reconstruct the HelloRetryMessage for handshake hash. */
+    #ifdef WOLFSSL_TLS13_DRAFT_18
+        length = HRR_BODY_SZ + HRR_COOKIE_HDR_SZ + cookie->len;
+    #else
+        length = HRR_BODY_SZ - ID_LEN + ssl->session.sessionIDSz +
+                 HRR_COOKIE_HDR_SZ + cookie->len;
+        length += HRR_VERSIONS_SZ;
+    #endif
+        if (cookieDataSz > hashSz + OPAQUE16_LEN) {
+            keyShareExt = 1;
+            length += HRR_KEY_SHARE_SZ;
+        }
+    #ifdef WOLFSSL_TLS13_DRAFT_18
+        AddTls13HandShakeHeader(hrr, length, 0, 0, hello_retry_request, ssl);
 
-    /* Extensions' length */
-    length -= HRR_BODY_SZ;
-    c16toa(length, hrr + hrrIdx);
-    hrrIdx += 2;
-#else
-    AddTls13HandShakeHeader(hrr, length, 0, 0, server_hello, ssl);
+        idx += hashSz;
+        hrrIdx = HANDSHAKE_HEADER_SZ;
+        /* TODO: [TLS13] Replace existing code with code in comment.
+         * Use the TLS v1.3 draft version for now.
+         *
+         * Change to:
+         * hrr[hrrIdx++] = ssl->version.major;
+         * hrr[hrrIdx++] = ssl->version.minor;
+         */
+        /* The negotiated protocol version. */
+        hrr[hrrIdx++] = TLS_DRAFT_MAJOR;
+        hrr[hrrIdx++] = TLS_DRAFT_MINOR;
+        /* Cipher Suite */
+        hrr[hrrIdx++] = cookieData[idx++];
+        hrr[hrrIdx++] = cookieData[idx++];
 
-    idx += hashSz;
-    hrrIdx = HANDSHAKE_HEADER_SZ;
+        /* Extensions' length */
+        length -= HRR_BODY_SZ;
+        c16toa(length, hrr + hrrIdx);
+        hrrIdx += 2;
+    #else
+        AddTls13HandShakeHeader(hrr, length, 0, 0, server_hello, ssl);
 
-    /* The negotiated protocol version. */
-    hrr[hrrIdx++] = ssl->version.major;
-    hrr[hrrIdx++] = TLSv1_2_MINOR;
+        idx += hashSz;
+        hrrIdx = HANDSHAKE_HEADER_SZ;
 
-    /* HelloRetryRequest message has fixed value for random. */
-    XMEMCPY(hrr + hrrIdx, helloRetryRequestRandom, RAN_LEN);
-    hrrIdx += RAN_LEN;
+        /* The negotiated protocol version. */
+        hrr[hrrIdx++] = ssl->version.major;
+        hrr[hrrIdx++] = TLSv1_2_MINOR;
 
-    hrr[hrrIdx++] = ssl->session.sessionIDSz;
-    if (ssl->session.sessionIDSz > 0) {
-        XMEMCPY(hrr + hrrIdx, ssl->session.sessionID, ssl->session.sessionIDSz);
-        hrrIdx += ssl->session.sessionIDSz;
-    }
+        /* HelloRetryRequest message has fixed value for random. */
+        XMEMCPY(hrr + hrrIdx, helloRetryRequestRandom, RAN_LEN);
+        hrrIdx += RAN_LEN;
 
-    /* Cipher Suite */
-    hrr[hrrIdx++] = cookieData[idx++];
-    hrr[hrrIdx++] = cookieData[idx++];
+        hrr[hrrIdx++] = ssl->session.sessionIDSz;
+        if (ssl->session.sessionIDSz > 0) {
+            XMEMCPY(hrr + hrrIdx, ssl->session.sessionID,
+                                                      ssl->session.sessionIDSz);
+            hrrIdx += ssl->session.sessionIDSz;
+        }
 
-    /* Compression not supported in TLS v1.3. */
-    hrr[hrrIdx++] = 0;
+        /* Cipher Suite */
+        hrr[hrrIdx++] = cookieData[idx++];
+        hrr[hrrIdx++] = cookieData[idx++];
 
-    /* Extensions' length */
-    length -= HRR_BODY_SZ - ID_LEN + ssl->session.sessionIDSz;
-    c16toa(length, hrr + hrrIdx);
-    hrrIdx += 2;
+        /* Compression not supported in TLS v1.3. */
+        hrr[hrrIdx++] = 0;
 
-#endif
-    /* Optional KeyShare Extension */
-    if (keyShareExt) {
-        c16toa(TLSX_KEY_SHARE, hrr + hrrIdx);
+        /* Extensions' length */
+        length -= HRR_BODY_SZ - ID_LEN + ssl->session.sessionIDSz;
+        c16toa(length, hrr + hrrIdx);
+        hrrIdx += 2;
+
+    #endif
+        /* Optional KeyShare Extension */
+        if (keyShareExt) {
+            c16toa(TLSX_KEY_SHARE, hrr + hrrIdx);
+            hrrIdx += 2;
+            c16toa(OPAQUE16_LEN, hrr + hrrIdx);
+            hrrIdx += 2;
+            hrr[hrrIdx++] = cookieData[idx++];
+            hrr[hrrIdx++] = cookieData[idx++];
+        }
+    #ifndef WOLFSSL_TLS13_DRAFT_18
+        c16toa(TLSX_SUPPORTED_VERSIONS, hrr + hrrIdx);
         hrrIdx += 2;
         c16toa(OPAQUE16_LEN, hrr + hrrIdx);
         hrrIdx += 2;
-        hrr[hrrIdx++] = cookieData[idx++];
-        hrr[hrrIdx++] = cookieData[idx++];
+        hrr[hrrIdx++] = ssl->version.major;
+        hrr[hrrIdx++] = ssl->version.minor;
+    #endif
+        /* Mandatory Cookie Extension */
+        c16toa(TLSX_COOKIE, hrr + hrrIdx);
+        hrrIdx += 2;
+        c16toa(cookie->len + OPAQUE16_LEN, hrr + hrrIdx);
+        hrrIdx += 2;
+        c16toa(cookie->len, hrr + hrrIdx);
+        hrrIdx += 2;
+
+    #ifdef WOLFSSL_DEBUG_TLS
+        WOLFSSL_MSG("Reconstucted HelloRetryRequest");
+        WOLFSSL_BUFFER(hrr, hrrIdx);
+        WOLFSSL_MSG("Cookie");
+        WOLFSSL_BUFFER(cookieData, cookie->len);
+    #endif
+
+        ret = HashOutputRaw(ssl, hrr, hrrIdx);
     }
-#ifndef WOLFSSL_TLS13_DRAFT_18
-    c16toa(TLSX_SUPPORTED_VERSIONS, hrr + hrrIdx);
-    hrrIdx += 2;
-    c16toa(OPAQUE16_LEN, hrr + hrrIdx);
-    hrrIdx += 2;
-    hrr[hrrIdx++] = ssl->version.major;
-    hrr[hrrIdx++] = ssl->version.minor;
-#endif
-    /* Mandatory Cookie Extension */
-    c16toa(TLSX_COOKIE, hrr + hrrIdx);
-    hrrIdx += 2;
-    c16toa(cookie->len + OPAQUE16_LEN, hrr + hrrIdx);
-    hrrIdx += 2;
-    c16toa(cookie->len, hrr + hrrIdx);
-    hrrIdx += 2;
+    if (ret == 0)
+        ret = HashOutputRaw(ssl, cookieData, cookie->len);
 
-#ifdef WOLFSSL_DEBUG_TLS
-    WOLFSSL_MSG("Reconstucted HelloRetryRequest");
-    WOLFSSL_BUFFER(hrr, hrrIdx);
-    WOLFSSL_MSG("Cookie");
-    WOLFSSL_BUFFER(cookieData, cookie->len);
-#endif
-
-    if ((ret = HashOutputRaw(ssl, hrr, hrrIdx)) != 0)
-        return ret;
-    return HashOutputRaw(ssl, cookieData, cookie->len);
+    return ret;
 }
 #endif
 
@@ -4626,11 +4619,10 @@ static int CreateSigData(WOLFSSL* ssl, byte* sigData, word16* sigDataSz,
     idx += CERT_VFY_LABEL_SZ;
 
     ret = GetMsgHash(ssl, &sigData[idx]);
-    if (ret < 0)
-        return ret;
-
-    *sigDataSz = idx + ret;
-    ret = 0;
+    if (ret >= 0) {
+        *sigDataSz = idx + ret;
+        ret = 0;
+    }
 
     return ret;
 }
@@ -4784,25 +4776,20 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
     word32 sigSz;
 
     ret = CreateSigData(ssl, sigData, &sigDataSz, 1);
-    if (ret != 0)
-        return ret;
-
-    if (sigAlgo == rsa_pss_sa_algo) {
+    if (ret == 0 && sigAlgo == rsa_pss_sa_algo) {
         enum wc_HashType hashType = WC_HASH_TYPE_NONE;
 
         ret = ConvertHashPss(hashAlgo, &hashType, NULL);
-        if (ret < 0)
-            return ret;
-
         /* PSS signature can be done in-place */
-        ret = CreateRSAEncodedSig(sigData, sigData, sigDataSz,
-                                  sigAlgo, hashAlgo);
-        if (ret < 0)
-            return ret;
-        sigSz = ret;
-
-        ret = wc_RsaPSS_CheckPadding(sigData, sigSz, decSig, decSigSz,
-                                     hashType);
+        if (ret == 0) {
+            ret = CreateRSAEncodedSig(sigData, sigData, sigDataSz, sigAlgo,
+                                                                      hashAlgo);
+        }
+        if (ret >= 0) {
+            sigSz = ret;
+            ret = wc_RsaPSS_CheckPadding(sigData, sigSz, decSig, decSigSz,
+                                                                      hashType);
+        }
     }
 
     return ret;
@@ -4821,21 +4808,21 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
  */
 static word32 NextCert(byte* data, word32 length, word32* idx)
 {
-    word32 len;
+    word32 len = 0;
 
     /* Is index at end of list. */
-    if (*idx == length)
-        return 0;
+    if (*idx != length) {
+        /* Length of the current ASN.1 encoded certificate. */
+        c24to32(data + *idx, &len);
+        /* Include the length field. */
+        len += 3;
 
-    /* Length of the current ASN.1 encoded certificate. */
-    c24to32(data + *idx, &len);
-    /* Include the length field. */
-    len += 3;
+        /* Move index to next certificate and return the current certificate's
+         * length.
+         */
+        *idx += len;
+    }
 
-    /* Move index to next certificate and return the current certificate's
-     * length.
-     */
-    *idx += len;
     return len;
 }
 

@@ -737,6 +737,18 @@ int SuiteTest(void)
     }
 #endif
 
+#ifndef WOLFSSL_NO_TLS12
+    /* No KE cipher suites tests */
+    strcpy(argv0[1], "tests/test-no-dh-ke.conf");
+    printf("starting tests of cipher suites not using dh ke\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+
     /* failure tests */
     args.argc = 3;
     strcpy(argv0[1], "tests/test-fails.conf");

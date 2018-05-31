@@ -144,7 +144,7 @@ static const byte tls13Downgrade[7] = {
 #define TLS13_DOWNGRADE_SZ  sizeof(tls13Downgrade)
 
 
-#ifndef NO_OLD_TLS
+#ifdef WOLFSSL_ALLOW_SSLV3
 static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
                     int content, int verify);
 
@@ -1744,7 +1744,7 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
             suites->hashSigAlgo[idx++] = sha256_mac;
             suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
         #endif
-        #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+        #if !defined(NO_SHA) && (defined(WOLFSSL_ALLOW_SSLV3) || \
                                                 defined(WOLFSSL_ALLOW_TLS_SHA1))
             suites->hashSigAlgo[idx++] = sha_mac;
             suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
@@ -1785,7 +1785,7 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
             suites->hashSigAlgo[idx++] = sha256_mac;
             suites->hashSigAlgo[idx++] = rsa_sa_algo;
         #endif
-        #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+        #if !defined(NO_SHA) && (defined(WOLFSSL_ALLOW_SSLV3) || \
                                                 defined(WOLFSSL_ALLOW_TLS_SHA1))
             suites->hashSigAlgo[idx++] = sha_mac;
             suites->hashSigAlgo[idx++] = rsa_sa_algo;
@@ -2754,7 +2754,7 @@ static enum wc_HashType HashAlgoToType(int hashAlgo)
         case sha256_mac:
             return WC_HASH_TYPE_SHA256;
     #endif
-    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+    #if !defined(NO_SHA) && (defined(WOLFSSL_ALLOW_SSLV3) || \
                              defined(WOLFSSL_ALLOW_TLS_SHA1))
         case sha_mac:
             return WC_HASH_TYPE_SHA;
@@ -3266,7 +3266,7 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
     return ret;
 }
 
-#ifndef WOLFSSL_NO_TLS12
+#if defined(WOLFSSL_STATIC_RSA) && !defined(WOLFSSL_NO_TLS12)
 
 int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     RsaKey* key, DerBuffer* keyBufInfo, void* ctx)
@@ -3385,7 +3385,7 @@ int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
     return ret;
 }
 
-#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* WOLFSSL_STATIC_RSA && !WOLFSSL_NO_TLS12 */
 
 #endif /* NO_RSA */
 
@@ -4526,7 +4526,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->buffers.dtlsCtx.wfd            = -1;
 #endif
 
-    #ifndef NO_OLD_TLS
+    #ifdef WOLFSSL_ALLOW_SSLV3
         ssl->hmac = SSL_hmac; /* default to SSLv3 */
     #elif !defined(WOLFSSL_NO_TLS12)
         ssl->hmac = TLS_hmac;
@@ -4909,6 +4909,20 @@ static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
     #endif /* !NO_DH */
         default:
             return BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
+
+static int PrepareKey(WOLFSSL* ssl, int type, void** pKey, byte* present)
+{
+    int ret = 0;
+
+    if (*pKey == NULL)
+        ret = AllocKey(ssl, type, pKey);
+    else if (*present) {
+        ret = ReuseKey(ssl, type, *pKey);
+        *present = 0;
     }
 
     return ret;
@@ -6896,8 +6910,8 @@ static int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
 #endif
 
 
-#if !defined(NO_OLD_TLS) || \
-    (defined(NO_OLD_TLS) && defined(WOLFSSL_ALLOW_TLS_SHA1))
+#if defined(WOLFSSL_ALLOW_SSLV3) || \
+              (!defined(WOLFSSL_ALLOW_SSLV3) && defined(WOLFSSL_ALLOW_TLS_SHA1))
 /* fill with MD5 pad size since biggest required */
 static const byte PAD1[PAD_MD5] =
                               { 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36,
@@ -6915,9 +6929,9 @@ static const byte PAD2[PAD_MD5] =
                                 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c,
                                 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c
                               };
-#endif /* !NO_OLD_TLS || (NO_OLD_TLS && WOLFSSL_ALLOW_TLS_SHA1) */
+#endif
 
-#ifndef NO_OLD_TLS
+#ifdef WOLFSSL_ALLOW_SSLV3
 
 /* calculate MD5 hash for finished */
 #ifdef WOLFSSL_TI_HASH
@@ -7051,7 +7065,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         ret = BuildTlsFinished(ssl, hashes, sender);
     }
 #endif
-#ifndef NO_OLD_TLS
+#ifdef WOLFSSL_ALLOW_SSLV3
     if (!ssl->options.tls) {
         ret = BuildMD5(ssl, hashes, sender);
         if (ret == 0) {
@@ -7140,6 +7154,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             break;
 
 
+    #ifndef NO_PSK
         case TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256 :
             if (requirement == REQUIRES_PSK)
                 return 1;
@@ -7156,6 +7171,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_DHE)
                 return 1;
             break;
+    #endif
             }
         }
 
@@ -7170,12 +7186,14 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
+    #endif
 
 #ifndef NO_DES3
         case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
@@ -7183,12 +7201,14 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
+    #endif
 #endif
 
 #ifndef NO_RC4
@@ -7197,12 +7217,14 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_RSA_WITH_RC4_128_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
+    #endif
 #endif
 #endif /* NO_RSA */
 
@@ -7212,10 +7234,12 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
+    #endif
 #endif
 #ifndef NO_RC4
         case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
@@ -7223,10 +7247,12 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_ECDSA_WITH_RC4_128_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
+    #endif
 #endif
 #ifndef NO_RSA
         case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
@@ -7234,12 +7260,14 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
+    #endif
 #endif
 
         case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
@@ -7247,20 +7275,24 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
+    #endif
 
         case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA :
             if (requirement == REQUIRES_ECC)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
+    #endif
 
         case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 :
             if (requirement == REQUIRES_ECC)
@@ -7272,6 +7304,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256 :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
@@ -7281,6 +7314,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
+    #endif
 
 #ifndef NO_RSA
         case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
@@ -7293,6 +7327,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256 :
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
@@ -7306,7 +7341,9 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
+    #endif
 
+    #ifdef WOLFSSL_STATIC_RSA
         case TLS_RSA_WITH_AES_128_CCM_8 :
         case TLS_RSA_WITH_AES_256_CCM_8 :
             if (requirement == REQUIRES_RSA)
@@ -7314,6 +7351,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
+    #endif
 
         case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
         case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
@@ -7321,6 +7359,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256 :
         case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384 :
             if (requirement == REQUIRES_RSA_SIG)
@@ -7328,6 +7367,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
+    #endif
 #endif
 
         case TLS_ECDHE_ECDSA_WITH_AES_128_CCM :
@@ -7343,6 +7383,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_DH
         case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256 :
         case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384 :
             if (requirement == REQUIRES_ECC)
@@ -7350,7 +7391,9 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
+    #endif
 
+    #ifndef NO_PSK
         case TLS_PSK_WITH_AES_128_CCM:
         case TLS_PSK_WITH_AES_256_CCM:
         case TLS_PSK_WITH_AES_128_CCM_8:
@@ -7366,12 +7409,14 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_DHE)
                 return 1;
             break;
+    #endif
 
         case TLS_ECDHE_ECDSA_WITH_NULL_SHA :
             if (requirement == REQUIRES_ECC)
                 return 1;
             break;
 
+    #ifndef NO_PSK
         case TLS_ECDHE_PSK_WITH_NULL_SHA256 :
             if (requirement == REQUIRES_PSK)
                 return 1;
@@ -7381,6 +7426,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_PSK)
                 return 1;
             break;
+    #endif
 
         default:
             WOLFSSL_MSG("Unsupported cipher suite, CipherRequires ECC");
@@ -7417,6 +7463,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         switch (second) {
 
 #ifndef NO_RSA
+    #ifdef WOLFSSL_STATIC_RSA
         case SSL_RSA_WITH_RC4_128_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7431,12 +7478,16 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
+    #endif
 
+    #ifdef HAVE_NTRU
         case TLS_NTRU_RSA_WITH_RC4_128_SHA :
             if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
+    #endif
 
+    #ifdef WOLFSSL_STATIC_RSA
         case TLS_RSA_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7446,22 +7497,30 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
+    #endif
 
+    #ifdef HAVE_NTRU
         case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
+    #endif
 
+    #ifdef WOLFSSL_STATIC_RSA
         case TLS_RSA_WITH_AES_256_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
+    #endif
 
+    #ifdef HAVE_NTRU
         case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
+    #endif
 
+    #ifdef WOLFSSL_STATIC_RSA
         case TLS_RSA_WITH_AES_256_CBC_SHA256 :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7472,18 +7531,24 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
+    #endif
 
+    #ifdef HAVE_NTRU
         case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
             if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
+    #endif
 
+    #ifdef WOLFSSL_STATIC_RSA
         case SSL_RSA_WITH_IDEA_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
+    #endif
 #endif
 
+#ifndef NO_PSK
         case TLS_PSK_WITH_AES_128_GCM_SHA256 :
         case TLS_PSK_WITH_AES_256_GCM_SHA384 :
         case TLS_PSK_WITH_AES_128_CBC_SHA256 :
@@ -7508,6 +7573,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_PSK)
                 return 1;
             break;
+#endif
 
 #ifndef NO_RSA
         case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
@@ -7538,6 +7604,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_RSA
         case TLS_RSA_WITH_HC_128_MD5 :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7569,6 +7636,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
+    #endif
 
         case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 :
         case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 :
@@ -7578,6 +7646,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef WOLFSSL_STATIC_RSA
         case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
         case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
         case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
@@ -7585,6 +7654,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
+    #endif
 
         case TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA :
         case TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA :
@@ -9073,11 +9143,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     else
                 #endif
                 if (args->dCert->extKeyUsageSet) {
+                #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
                     if ((ssl->specs.kea == rsa_kea) &&
                         (ssl->options.side == WOLFSSL_CLIENT_END) &&
                         (args->dCert->extKeyUsage & KEYUSE_KEY_ENCIPHER) == 0) {
                         ret = KEYUSE_ENCIPHER_E;
                     }
+                #endif /* !NO_RSA && WOLFSSL_STATIC_RSA */
                     if ((ssl->specs.sig_algo == rsa_sa_algo ||
                             (ssl->specs.sig_algo == ecc_dsa_sa_algo &&
                                  !ssl->specs.static_ecdh)) &&
@@ -9166,15 +9238,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         word32 keyIdx = 0;
                         int keyRet = 0;
 
-                        if (ssl->peerRsaKey == NULL) {
-                            keyRet = AllocKey(ssl, DYNAMIC_TYPE_RSA,
-                                                (void**)&ssl->peerRsaKey);
-                        } else if (ssl->peerRsaKeyPresent) {
-                            keyRet = ReuseKey(ssl, DYNAMIC_TYPE_RSA,
-                                              ssl->peerRsaKey);
-                            ssl->peerRsaKeyPresent = 0;
-                        }
-
+                        keyRet = PrepareKey(ssl, DYNAMIC_TYPE_RSA,
+                                                       (void**)&ssl->peerRsaKey,
+                                                       &ssl->peerRsaKeyPresent);
                         if (keyRet != 0 || wc_RsaPublicKeyDecode(
                                 args->dCert->publicKey, &keyIdx, ssl->peerRsaKey,
                                                 args->dCert->pubKeySize) != 0) {
@@ -9234,16 +9300,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         int keyRet = 0;
                         word32 idx = 0;
 
-                        if (ssl->peerEccDsaKey == NULL) {
-                            /* alloc/init on demand */
-                            keyRet = AllocKey(ssl, DYNAMIC_TYPE_ECC,
-                                    (void**)&ssl->peerEccDsaKey);
-                        } else if (ssl->peerEccDsaKeyPresent) {
-                            keyRet = ReuseKey(ssl, DYNAMIC_TYPE_ECC,
-                                              ssl->peerEccDsaKey);
-                            ssl->peerEccDsaKeyPresent = 0;
-                        }
-
+                        keyRet = PrepareKey(ssl, DYNAMIC_TYPE_ECC,
+                                                    (void**)&ssl->peerEccDsaKey,
+                                                    &ssl->peerEccDsaKeyPresent);
                         if (keyRet != 0 ||
                             wc_EccPublicKeyDecode(args->dCert->publicKey, &idx,
                                                 ssl->peerEccDsaKey,
@@ -9283,17 +9342,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifdef HAVE_ED25519
                     case ED25519k:
                     {
-                        int keyRet = 0;
-                        if (ssl->peerEd25519Key == NULL) {
-                            /* alloc/init on demand */
-                            keyRet = AllocKey(ssl, DYNAMIC_TYPE_ED25519,
-                                    (void**)&ssl->peerEd25519Key);
-                        } else if (ssl->peerEd25519KeyPresent) {
-                            keyRet = ReuseKey(ssl, DYNAMIC_TYPE_ED25519,
-                                              ssl->peerEd25519Key);
-                            ssl->peerEd25519KeyPresent = 0;
-                        }
-
+                        int keyRet = PrepareKey(ssl, DYNAMIC_TYPE_ED25519,
+                                                   (void**)&ssl->peerEd25519Key,
+                                                   &ssl->peerEd25519KeyPresent);
                         if (keyRet != 0 ||
                             wc_ed25519_import_public(args->dCert->publicKey,
                                                      args->dCert->pubKeySize,
@@ -10083,7 +10134,9 @@ static int SanityCheckMsgReceived(WOLFSSL* ssl, byte type)
                         pskNoServerHint = 1;
                 #endif
                 if (ssl->specs.static_ecdh == 1 ||
+                #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
                     ssl->specs.kea == rsa_kea ||
+                #endif /* !NO_RSA && WOLFSSL_STATIC_RSA */
                     ssl->specs.kea == ntru_kea ||
                     pskNoServerHint) {
                     WOLFSSL_MSG("No KeyExchange required");
@@ -11861,7 +11914,7 @@ static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
 }
 
 #ifndef NO_OLD_TLS
-
+#ifdef WOLFSSL_ALLOW_SSLV3 
 static INLINE void Md5Rounds(int rounds, const byte* data, int sz)
 {
     wc_Md5 md5;
@@ -11873,7 +11926,7 @@ static INLINE void Md5Rounds(int rounds, const byte* data, int sz)
         wc_Md5Update(&md5, data, sz);
     wc_Md5Free(&md5); /* in case needed to release resources */
 }
-
+#endif
 
 
 /* do a dummy sha round */
@@ -11976,11 +12029,13 @@ static INLINE void DoRounds(int type, int rounds, const byte* data, int sz)
             break;
 
 #ifndef NO_OLD_TLS
-#ifndef NO_MD5
+    #ifdef WOLFSSL_ALLOW_SSLV3
+        #ifndef NO_MD5
         case md5_mac :
             Md5Rounds(rounds, data, sz);
             break;
-#endif
+        #endif
+    #endif
 
 #ifndef NO_SHA
         case sha_mac :
@@ -13116,7 +13171,7 @@ int SendChangeCipher(WOLFSSL* ssl)
 }
 
 
-#ifndef NO_OLD_TLS
+#ifdef WOLFSSL_ALLOW_SSLV3
 static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
                  int content, int verify)
 {
@@ -13229,12 +13284,12 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     }
     return 0;
 }
-#endif /* NO_OLD_TLS */
+#endif /* WOLFSSL_ALLOW_SSLV3 */
 
 
 #ifndef NO_CERTS
 
-#if !defined(NO_MD5) && !defined(NO_OLD_TLS)
+#if !defined(NO_MD5) && defined(WOLFSSL_ALLOW_SSLV3)
 static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 {
     int ret;
@@ -13277,8 +13332,8 @@ static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 }
 #endif /* !NO_MD5 && !NO_OLD_TLS */
 
-#if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
-                              defined(WOLFSSL_ALLOW_TLS_SHA1))
+#if !defined(NO_SHA) && (defined(WOLFSSL_ALLOW_SSLV3) || \
+                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
 static int BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 {
     int ret;
@@ -13319,7 +13374,7 @@ static int BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 
     return ret;
 }
-#endif /* !NO_SHA && (!NO_OLD_TLS || WOLFSSL_ALLOW_TLS_SHA1) */
+#endif /* !NO_SHA && (WOLFSSL_ALLOW_SSLV3 || WOLFSSL_ALLOW_TLS_SHA1) */
 
 int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
 {
@@ -13360,13 +13415,13 @@ int BuildCertHashes(WOLFSSL* ssl, Hashes* hashes)
         }
     }
     else {
-    #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
+    #if !defined(NO_MD5) && defined(WOLFSSL_ALLOW_SSLV3)
         ret = BuildMD5_CertVerify(ssl, hashes->md5);
         if (ret != 0)
             return ret;
     #endif
-    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
-                              defined(WOLFSSL_ALLOW_TLS_SHA1))
+    #if !defined(NO_SHA) && (defined(WOLFSSL_ALLOW_SSLV3) || \
+                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
         ret = BuildSHA_CertVerify(ssl, hashes->sha);
         if (ret != 0)
             return ret;
@@ -17552,20 +17607,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
 
              #ifdef HAVE_CURVE25519
                     if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                        if (ssl->peerX25519Key == NULL) {
-                            ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                           (void**)&ssl->peerX25519Key);
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        } else if (ssl->peerEccKeyPresent) {
-                            ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                           ssl->peerX25519Key);
-                            ssl->peerX25519KeyPresent = 0;
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        }
+                        ret = PrepareKey(ssl, DYNAMIC_TYPE_CURVE25519,
+                                                    (void**)&ssl->peerX25519Key,
+                                                    &ssl->peerX25519KeyPresent);
+                        if (ret != 0)
+                            goto exit_dske;
 
                         if (wc_curve25519_import_public_ex(input + args->idx,
                                 length, ssl->peerX25519Key,
@@ -17578,19 +17624,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         break;
                     }
              #endif
-                    if (ssl->peerEccKey == NULL) {
-                        ret = AllocKey(ssl, DYNAMIC_TYPE_ECC,
-                                       (void**)&ssl->peerEccKey);
-                        if (ret != 0) {
-                            goto exit_dske;
-                        }
-                    } else if (ssl->peerEccKeyPresent) {
-                        ret = ReuseKey(ssl, DYNAMIC_TYPE_ECC, ssl->peerEccKey);
-                        ssl->peerEccKeyPresent = 0;
-                        if (ret != 0) {
-                            goto exit_dske;
-                        }
-                    }
+                    ret = PrepareKey(ssl, DYNAMIC_TYPE_ECC,
+                                                       (void**)&ssl->peerEccKey,
+                                                       &ssl->peerEccKeyPresent);
+                    if (ret != 0)
+                        goto exit_dske;
 
                     curveId = wc_ecc_get_oid(curveOid, NULL, NULL);
                     if (wc_ecc_import_x963_ex(input + args->idx, length,
@@ -17765,20 +17803,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
 
                 #ifdef HAVE_CURVE25519
                     if (ssl->ecdhCurveOID == ECC_X25519_OID) {
-                        if (ssl->peerX25519Key == NULL) {
-                            ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                           (void**)&ssl->peerX25519Key);
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        } else if (ssl->peerEccKeyPresent) {
-                            ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                           ssl->peerX25519Key);
-                            ssl->peerX25519KeyPresent = 0;
-                            if (ret != 0) {
-                                goto exit_dske;
-                            }
-                        }
+                        ret = PrepareKey(ssl, DYNAMIC_TYPE_CURVE25519,
+                                                    (void**)&ssl->peerX25519Key,
+                                                    &ssl->peerX25519KeyPresent);
+                        if (ret != 0)
+                            goto exit_dske;
 
                         if (wc_curve25519_import_public_ex(input + args->idx,
                                 length, ssl->peerX25519Key,
@@ -17792,19 +17821,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     }
                 #endif
 
-                    if (ssl->peerEccKey == NULL) {
-                        ret = AllocKey(ssl, DYNAMIC_TYPE_ECC,
-                                 (void**)&ssl->peerEccKey);
-                        if (ret != 0) {
-                            goto exit_dske;
-                        }
-                    } else if (ssl->peerEccKeyPresent) {
-                        ret = ReuseKey(ssl, DYNAMIC_TYPE_ECC, ssl->peerEccKey);
-                        ssl->peerEccKeyPresent = 0;
-                        if (ret != 0) {
-                            goto exit_dske;
-                        }
-                    }
+                    ret = PrepareKey(ssl, DYNAMIC_TYPE_ECC,
+                                                       (void**)&ssl->peerEccKey,
+                                                       &ssl->peerEccKeyPresent);
+                    if (ret != 0)
+                        goto exit_dske;
 
                     curveId = wc_ecc_get_oid(curveOid, NULL, NULL);
                     if (wc_ecc_import_x963_ex(input + args->idx, length,
@@ -18752,14 +18773,14 @@ int SendClientKeyExchange(WOLFSSL* ssl)
         case TLS_ASYNC_BEGIN:
         {
             switch (ssl->specs.kea) {
-            #ifndef NO_RSA
+            #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
                 case rsa_kea:
                     if (ssl->peerRsaKey == NULL ||
                         ssl->peerRsaKeyPresent == 0) {
                         ERROR_OUT(NO_PEER_KEY, exit_scke);
                     }
                     break;
-            #endif
+            #endif /* !NO_RSA && WOLFSSL_STATIC_RSA */
             #ifndef NO_DH
                 case diffie_hellman_kea:
                     if (ssl->buffers.serverDH_P.buffer == NULL ||
@@ -18956,7 +18977,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
             switch(ssl->specs.kea)
             {
-            #ifndef NO_RSA
+            #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
                 case rsa_kea:
                 {
                     /* build PreMasterSecret with RNG data */
@@ -18972,7 +18993,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     ssl->arrays->preMasterSz = SECRET_LEN;
                     break;
                 }
-            #endif /* !NO_RSA */
+            #endif /* !NO_RSA && WOLFSSL_STATIC_RSA */
             #ifndef NO_DH
                 case diffie_hellman_kea:
                 {
@@ -19247,7 +19268,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
         {
             switch(ssl->specs.kea)
             {
-            #ifndef NO_RSA
+            #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
                 case rsa_kea:
                 {
                     ret = RsaEnc(ssl,
@@ -19264,7 +19285,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     break;
                 }
-            #endif /* !NO_RSA */
+            #endif /* !NO_RSA && WOLFSSL_STATIC_RSA */
             #ifndef NO_DH
                 case diffie_hellman_kea:
                 {
@@ -19420,12 +19441,12 @@ int SendClientKeyExchange(WOLFSSL* ssl)
         {
             switch(ssl->specs.kea)
             {
-            #ifndef NO_RSA
+            #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
                 case rsa_kea:
                 {
                     break;
                 }
-            #endif /* !NO_RSA */
+            #endif /* !NO_RSA && WOLFSSL_STATIC_RSA */
             #ifndef NO_DH
                 case diffie_hellman_kea:
                 {
@@ -24085,12 +24106,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #endif
 
                 switch (ssl->specs.kea) {
-                #ifndef NO_RSA
+                #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
                     case rsa_kea:
                     {
                         break;
                     } /* rsa_kea */
-                #endif /* !NO_RSA */
+                #endif /* !NO_RSA && WOLFSSL_STATIC_RSA */
                 #ifndef NO_PSK
                     case psk_kea:
                     {
@@ -24165,7 +24186,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case TLS_ASYNC_BUILD:
             {
                 switch (ssl->specs.kea) {
-                #ifndef NO_RSA
+                #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
                     case rsa_kea:
                     {
                         word32 i = 0;
@@ -24226,7 +24247,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         args->output = NULL;
                         break;
                     } /* rsa_kea */
-                #endif /* !NO_RSA */
+                #endif /* !NO_RSA && WOLFSSL_STATIC_RSA */
                 #ifndef NO_PSK
                     case psk_kea:
                     {
@@ -24371,21 +24392,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 break;
                             }
                         #endif
-                            if (ssl->peerX25519Key == NULL) {
-                                /* alloc/init on demand */
-                                ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                    (void**)&ssl->peerX25519Key);
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            } else if (ssl->peerX25519KeyPresent) {
-                                ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                               ssl->peerX25519Key);
-                                ssl->peerX25519KeyPresent = 0;
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            }
+                            ret = PrepareKey(ssl, DYNAMIC_TYPE_CURVE25519,
+                                                    (void**)&ssl->peerX25519Key,
+                                                    &ssl->peerX25519KeyPresent);
+                            if (ret != 0)
+                                goto exit_dcke;
 
                             if (wc_curve25519_import_public_ex(
                                     input + args->idx, args->length,
@@ -24416,21 +24427,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
                         }
 
-                        if (ssl->peerEccKey == NULL) {
-                            /* alloc/init on demand */
-                            ret = AllocKey(ssl, DYNAMIC_TYPE_ECC,
-                                (void**)&ssl->peerEccKey);
-                            if (ret != 0) {
-                                goto exit_dcke;
-                            }
-                        } else if (ssl->peerEccKeyPresent) {
-                            ret = ReuseKey(ssl, DYNAMIC_TYPE_ECC,
-                                           ssl->peerEccKey);
-                            ssl->peerEccKeyPresent = 0;
-                            if (ret != 0) {
-                                goto exit_dcke;
-                            }
-                        }
+                        ret = PrepareKey(ssl, DYNAMIC_TYPE_ECC,
+                                                      (void**)&ssl->peerEccKey,
+                                                      &ssl->peerEccKeyPresent);
+                        if (ret != 0)
+                            goto exit_dcke;
 
                         if (wc_ecc_import_x963_ex(input + args->idx, args->length,
                                         ssl->peerEccKey, private_key->dp->id)) {
@@ -24587,21 +24588,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
                             }
 
-                            if (ssl->peerX25519Key == NULL) {
-                                /* alloc/init on demand */
-                                ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                    (void**)&ssl->peerX25519Key);
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            } else if (ssl->peerX25519KeyPresent) {
-                                ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519,
-                                               ssl->peerX25519Key);
-                                ssl->peerX25519KeyPresent = 0;
-                                if (ret != 0) {
-                                    goto exit_dcke;
-                                }
-                            }
+                            ret = PrepareKey(ssl, DYNAMIC_TYPE_CURVE25519,
+                                                    (void**)&ssl->peerX25519Key,
+                                                    &ssl->peerX25519KeyPresent);
+                            if (ret != 0)
+                                goto exit_dcke;
 
                             if (wc_curve25519_import_public_ex(
                                     input + args->idx, args->length,
@@ -24627,22 +24618,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             ERROR_OUT(ECC_MAKEKEY_ERROR, exit_dcke);
                         }
 
-                        if (ssl->peerEccKey == NULL) {
-                            /* alloc/init on demand */
-                            ret = AllocKey(ssl, DYNAMIC_TYPE_ECC,
-                                (void**)&ssl->peerEccKey);
-                            if (ret != 0) {
-                                goto exit_dcke;
-                            }
-                        }
-                        else if (ssl->peerEccKeyPresent) {
-                            ret = ReuseKey(ssl, DYNAMIC_TYPE_ECC,
-                                           ssl->peerEccKey);
-                            ssl->peerEccKeyPresent = 0;
-                            if (ret != 0) {
-                                goto exit_dcke;
-                            }
-                        }
+                        ret = PrepareKey(ssl, DYNAMIC_TYPE_ECC,
+                                                       (void**)&ssl->peerEccKey,
+                                                       &ssl->peerEccKeyPresent);
+                        if (ret != 0)
+                            goto exit_dcke;
+
                         if (wc_ecc_import_x963_ex(input + args->idx, args->length,
                                  ssl->peerEccKey, ssl->eccTempKey->dp->id)) {
                             ERROR_OUT(ECC_PEERKEY_ERROR, exit_dcke);
@@ -24669,7 +24650,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case TLS_ASYNC_DO:
             {
                 switch (ssl->specs.kea) {
-                #ifndef NO_RSA
+                #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
                     case rsa_kea:
                     {
                         RsaKey* key = (RsaKey*)ssl->hsKey;
@@ -24703,7 +24684,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         }
                         break;
                     } /* rsa_kea */
-                #endif /* !NO_RSA */
+                #endif /* !NO_RSA && WOLFSSL_STATIC_RSA */
                 #ifndef NO_PSK
                     case psk_kea:
                     {
@@ -24842,7 +24823,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case TLS_ASYNC_VERIFY:
             {
                 switch (ssl->specs.kea) {
-                #ifndef NO_RSA
+                #if !defined(NO_RSA) && defined(WOLFSSL_STATIC_RSA)
                     case rsa_kea:
                     {
                         /* Add the signature length to idx */
@@ -24886,7 +24867,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         break;
                     } /* rsa_kea */
-                #endif /* !NO_RSA */
+                #endif /* !NO_RSA && WOLFSSL_STATIC_RSA */
                 #ifndef NO_PSK
                     case psk_kea:
                     {

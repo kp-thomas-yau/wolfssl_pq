@@ -1417,7 +1417,7 @@ int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
     return WOLFSSL_SUCCESS;
 }
 
-#endif /* !NO_RSA */
+#endif /* HAVE_ECC */
 
 #ifndef NO_RSA
 int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, short keySz)
@@ -8898,19 +8898,19 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
     int wolfSSL_accept(WOLFSSL* ssl)
     {
-#ifndef WOLFSSL_NO_TLS12
+    #ifndef WOLFSSL_NO_TLS12
         word16 havePSK = 0;
         word16 haveAnon = 0;
         word16 haveMcast = 0;
-#endif
-
-#ifdef WOLFSSL_NO_TLS12
-        return wolfSSL_accept_TLSv13(ssl);
-#else
-    #ifdef WOLFSSL_TLS13
-        if (ssl->options.tls1_3)
-            return wolfSSL_accept_TLSv13(ssl);
     #endif
+
+    #ifdef WOLFSSL_NO_TLS12
+        return wolfSSL_accept_TLSv13(ssl);
+    #else
+        #ifdef WOLFSSL_TLS13
+            if (ssl->options.tls1_3)
+                return wolfSSL_accept_TLSv13(ssl);
+        #endif
         WOLFSSL_ENTER("SSL_accept()");
 
         #ifdef HAVE_ERRNO_H
@@ -9001,7 +9001,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
-#ifdef WOLFSSL_TLS13
+        #ifdef WOLFSSL_TLS13
             ssl->options.acceptState = ACCEPT_CLIENT_HELLO_DONE;
             WOLFSSL_MSG("accept state ACCEPT_CLIENT_HELLO_DONE");
             FALL_THROUGH;
@@ -9010,7 +9010,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             if (ssl->options.tls1_3) {
                 return wolfSSL_accept_TLSv13(ssl);
             }
-#endif
+        #endif
             ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_FIRST_REPLY_DONE");
             FALL_THROUGH;
@@ -9030,25 +9030,27 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 return wolfSSL_accept_TLSv13(ssl);
             }
         #endif
-            #ifndef NO_CERTS
-                if (!ssl->options.resuming)
-                    if ( (ssl->error = SendCertificate(ssl)) != 0) {
-                        WOLFSSL_ERROR(ssl->error);
-                        return WOLFSSL_FATAL_ERROR;
-                    }
-            #endif
+        #ifndef NO_CERTS
+            if (!ssl->options.resuming) {
+                if ( (ssl->error = SendCertificate(ssl)) != 0) {
+                    WOLFSSL_ERROR(ssl->error);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+        #endif
             ssl->options.acceptState = CERT_SENT;
             WOLFSSL_MSG("accept state CERT_SENT");
             FALL_THROUGH;
 
         case CERT_SENT :
-            #ifndef NO_CERTS
-            if (!ssl->options.resuming)
+        #ifndef NO_CERTS
+            if (!ssl->options.resuming) {
                 if ( (ssl->error = SendCertificateStatus(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
-            #endif
+            }
+        #endif
             ssl->options.acceptState = CERT_STATUS_SENT;
             WOLFSSL_MSG("accept state CERT_STATUS_SENT");
             FALL_THROUGH;
@@ -9059,26 +9061,27 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 return wolfSSL_accept_TLSv13(ssl);
             }
         #endif
-            if (!ssl->options.resuming)
+            if (!ssl->options.resuming) {
                 if ( (ssl->error = SendServerKeyExchange(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
+            }
             ssl->options.acceptState = KEY_EXCHANGE_SENT;
             WOLFSSL_MSG("accept state KEY_EXCHANGE_SENT");
             FALL_THROUGH;
 
         case KEY_EXCHANGE_SENT :
-            #ifndef NO_CERTS
-                if (!ssl->options.resuming) {
-                    if (ssl->options.verifyPeer) {
-                        if ( (ssl->error = SendCertificateRequest(ssl)) != 0) {
-                            WOLFSSL_ERROR(ssl->error);
-                            return WOLFSSL_FATAL_ERROR;
-                        }
+        #ifndef NO_CERTS
+            if (!ssl->options.resuming) {
+                if (ssl->options.verifyPeer) {
+                    if ( (ssl->error = SendCertificateRequest(ssl)) != 0) {
+                        WOLFSSL_ERROR(ssl->error);
+                        return WOLFSSL_FATAL_ERROR;
                     }
                 }
-            #endif
+            }
+        #endif
             ssl->options.acceptState = CERT_REQ_SENT;
             WOLFSSL_MSG("accept state CERT_REQ_SENT");
             FALL_THROUGH;
@@ -9106,14 +9109,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case ACCEPT_SECOND_REPLY_DONE :
-#ifdef HAVE_SESSION_TICKET
+        #ifdef HAVE_SESSION_TICKET
             if (ssl->options.createTicket) {
                 if ( (ssl->error = SendTicket(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
             }
-#endif /* HAVE_SESSION_TICKET */
+        #endif /* HAVE_SESSION_TICKET */
             ssl->options.acceptState = TICKET_SENT;
             WOLFSSL_MSG("accept state  TICKET_SENT");
             FALL_THROUGH;
@@ -9150,7 +9153,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case ACCEPT_THIRD_REPLY_DONE :
-#ifndef NO_HANDSHAKE_DONE_CB
+        #ifndef NO_HANDSHAKE_DONE_CB
             if (ssl->hsDoneCb) {
                 int cbret = ssl->hsDoneCb(ssl, ssl->hsDoneCtx);
                 if (cbret < 0) {
@@ -9159,20 +9162,20 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     return WOLFSSL_FATAL_ERROR;
                 }
             }
-#endif /* NO_HANDSHAKE_DONE_CB */
+        #endif /* NO_HANDSHAKE_DONE_CB */
 
             if (!ssl->options.dtls) {
                 if (!ssl->options.keepResources) {
                     FreeHandshakeResources(ssl);
                 }
             }
-#ifdef WOLFSSL_DTLS
+        #ifdef WOLFSSL_DTLS
             else {
                 ssl->options.dtlsHsRetain = 1;
             }
-#endif /* WOLFSSL_DTLS */
+        #endif /* WOLFSSL_DTLS */
 
-#ifdef WOLFSSL_SESSION_EXPORT
+        #ifdef WOLFSSL_SESSION_EXPORT
             if (ssl->dtls_export) {
                 if ((ssl->error = wolfSSL_send_session(ssl)) != 0) {
                     WOLFSSL_MSG("Export DTLS session error");
@@ -9180,7 +9183,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     return WOLFSSL_FATAL_ERROR;
                 }
             }
-#endif
+        #endif
 
             WOLFSSL_LEAVE("SSL_accept()", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;
@@ -9189,7 +9192,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             WOLFSSL_MSG("Unknown accept state ERROR");
             return WOLFSSL_FATAL_ERROR;
         }
-#endif /* !WOLFSSL_NO_TLS12 */
+    #endif /* !WOLFSSL_NO_TLS12 */
     }
 
 #endif /* NO_WOLFSSL_SERVER */
