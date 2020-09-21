@@ -217,8 +217,9 @@ int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c)
       case AES_256_OFB_TYPE: return 32;
   #endif
   #if defined(WOLFSSL_AES_XTS)
-      case AES_128_XTS_TYPE: return 16;
-      case AES_256_XTS_TYPE: return 32;
+      /* Two keys for XTS. */
+      case AES_128_XTS_TYPE: return 16 * 2;
+      case AES_256_XTS_TYPE: return 32 * 2;
   #endif
   #if defined(HAVE_AESGCM)
       case AES_128_GCM_TYPE: return 16;
@@ -915,7 +916,6 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptFinal_legacy(WOLFSSL_EVP_CIPHER_CTX *ctx,
 }
 #endif
 
-
 int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *ctx)
 {
     if (ctx == NULL) return BAD_FUNC_ARG;
@@ -1114,7 +1114,7 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
       case AES_128_GCM_TYPE:
       case AES_192_GCM_TYPE:
       case AES_256_GCM_TYPE:
-          return AES_BLOCK_SIZE;
+          return 1;
   #endif
   #if defined(WOLFSSL_AES_COUNTER)
       case AES_128_CTR_TYPE:
@@ -1127,6 +1127,29 @@ int wolfSSL_EVP_CIPHER_block_size(const WOLFSSL_EVP_CIPHER *cipher)
       case AES_192_ECB_TYPE:
       case AES_256_ECB_TYPE:
           return AES_BLOCK_SIZE;
+  #endif
+  #if defined(WOLFSSL_AES_CFB)
+      case AES_128_CFB1_TYPE:
+      case AES_192_CFB1_TYPE:
+      case AES_256_CFB1_TYPE:
+      case AES_128_CFB8_TYPE:
+      case AES_192_CFB8_TYPE:
+      case AES_256_CFB8_TYPE:
+      case AES_128_CFB128_TYPE:
+      case AES_192_CFB128_TYPE:
+      case AES_256_CFB128_TYPE:
+          return 1;
+  #endif
+  #if defined(WOLFSSL_AES_OFB)
+      case AES_128_OFB_TYPE:
+      case AES_192_OFB_TYPE:
+      case AES_256_OFB_TYPE:
+          return 1;
+  #endif
+  #if defined(HAVE_AES_XTS)
+      case AES_128_XTS_TYPE:
+      case AES_256_XTS_TYPE:
+          return 1;
   #endif
 #endif /* NO_AES */
   #ifndef NO_DES3
@@ -1162,11 +1185,34 @@ unsigned long WOLFSSL_CIPHER_mode(const WOLFSSL_EVP_CIPHER *cipher)
         case AES_256_CTR_TYPE:
             return WOLFSSL_EVP_CIPH_CTR_MODE;
     #endif
+    #if defined(WOLFSSL_AES_CFB)
+        case AES_128_CFB1_TYPE:
+        case AES_192_CFB1_TYPE:
+        case AES_256_CFB1_TYPE:
+        case AES_128_CFB8_TYPE:
+        case AES_192_CFB8_TYPE:
+        case AES_256_CFB8_TYPE:
+        case AES_128_CFB128_TYPE:
+        case AES_192_CFB128_TYPE:
+        case AES_256_CFB128_TYPE:
+            return WOLFSSL_EVP_CIPH_CFB_MODE;
+    #endif
+    #if defined(WOLFSSL_AES_OFB)
+        case AES_128_OFB_TYPE:
+        case AES_192_OFB_TYPE:
+        case AES_256_OFB_TYPE:
+            return WOLFSSL_EVP_CIPH_OFB_MODE;
+    #endif
+    #if defined(WOLFSSL_AES_XTS)
+        case AES_128_XTS_TYPE:
+        case AES_256_XTS_TYPE:
+            return WOLFSSL_EVP_CIPH_XTS_MODE;
+    #endif
         case AES_128_ECB_TYPE:
         case AES_192_ECB_TYPE:
         case AES_256_ECB_TYPE:
             return WOLFSSL_EVP_CIPH_ECB_MODE;
-#endif /* NO_ASE */
+#endif /* NO_AES */
     #ifndef NO_DES3
         case DES_CBC_TYPE:
         case DES_EDE3_CBC_TYPE:
@@ -2649,92 +2695,103 @@ static const struct cipher{
 } cipher_tbl[] = {
 
 #ifndef NO_AES
-    #ifdef WOLFSSL_AES_128
-    {AES_128_CBC_TYPE, "AES-128-CBC", NID_aes_128_cbc},
-    #endif
-    #ifdef WOLFSSL_AES_192
-    {AES_192_CBC_TYPE, "AES-192-CBC", NID_aes_192_cbc},
-    #endif
-    #ifdef WOLFSSL_AES_256
-    {AES_256_CBC_TYPE, "AES-256-CBC", NID_aes_256_cbc},
-    #endif
+    #if defined(HAVE_AES_CBC)
+        #ifdef WOLFSSL_AES_128
+        {AES_128_CBC_TYPE, "AES-128-CBC", NID_aes_128_cbc},
+        #endif
+        #ifdef WOLFSSL_AES_192
+        {AES_192_CBC_TYPE, "AES-192-CBC", NID_aes_192_cbc},
+        #endif
+        #ifdef WOLFSSL_AES_256
+        {AES_256_CBC_TYPE, "AES-256-CBC", NID_aes_256_cbc},
+        #endif
+    #endif /* HAVE_AES_CBC */
 
-    #ifdef WOLFSSL_AES_128
-    {AES_128_CFB1_TYPE, "AES-128-CFB1", NID_aes_128_cfb1},
-    #endif
-    #ifdef WOLFSSL_AES_192
-    {AES_192_CFB1_TYPE, "AES-192-CFB1", NID_aes_192_cfb1},
-    #endif
-    #ifdef WOLFSSL_AES_256
-    {AES_256_CFB1_TYPE, "AES-256-CFB1", NID_aes_256_cfb1},
-    #endif
+    #if defined(WOLFSSL_AES_CFB)
+        #ifdef WOLFSSL_AES_128
+        {AES_128_CFB1_TYPE, "AES-128-CFB1", NID_aes_128_cfb1},
+        #endif
+        #ifdef WOLFSSL_AES_192
+        {AES_192_CFB1_TYPE, "AES-192-CFB1", NID_aes_192_cfb1},
+        #endif
+        #ifdef WOLFSSL_AES_256
+        {AES_256_CFB1_TYPE, "AES-256-CFB1", NID_aes_256_cfb1},
+        #endif
 
-    #ifdef WOLFSSL_AES_128
-    {AES_128_CFB8_TYPE, "AES-128-CFB8", NID_aes_128_cfb8},
-    #endif
-    #ifdef WOLFSSL_AES_192
-    {AES_192_CFB8_TYPE, "AES-192-CFB8", NID_aes_192_cfb8},
-    #endif
-    #ifdef WOLFSSL_AES_256
-    {AES_256_CFB8_TYPE, "AES-256-CFB8", NID_aes_256_cfb8},
-    #endif
+        #ifdef WOLFSSL_AES_128
+        {AES_128_CFB8_TYPE, "AES-128-CFB8", NID_aes_128_cfb8},
+        #endif
+        #ifdef WOLFSSL_AES_192
+        {AES_192_CFB8_TYPE, "AES-192-CFB8", NID_aes_192_cfb8},
+        #endif
+        #ifdef WOLFSSL_AES_256
+        {AES_256_CFB8_TYPE, "AES-256-CFB8", NID_aes_256_cfb8},
+        #endif
 
-    #ifdef WOLFSSL_AES_128
-    {AES_128_CFB128_TYPE, "AES-128-CFB128", NID_aes_128_cfb128},
-    #endif
-    #ifdef WOLFSSL_AES_192
-    {AES_192_CFB128_TYPE, "AES-192-CFB128", NID_aes_192_cfb128},
-    #endif
-    #ifdef WOLFSSL_AES_256
-    {AES_256_CFB128_TYPE, "AES-256-CFB128", NID_aes_256_cfb128},
-    #endif
+        #ifdef WOLFSSL_AES_128
+        {AES_128_CFB128_TYPE, "AES-128-CFB128", NID_aes_128_cfb128},
+        #endif
+        #ifdef WOLFSSL_AES_192
+        {AES_192_CFB128_TYPE, "AES-192-CFB128", NID_aes_192_cfb128},
+        #endif
+        #ifdef WOLFSSL_AES_256
+        {AES_256_CFB128_TYPE, "AES-256-CFB128", NID_aes_256_cfb128},
+        #endif
+    #endif /* WOLFSSL_AES_CFB */
 
-    #ifdef WOLFSSL_AES_128
-    {AES_128_OFB_TYPE, "AES-128-OFB", NID_aes_128_ofb},
-    #endif
-    #ifdef WOLFSSL_AES_192
-    {AES_192_OFB_TYPE, "AES-192-OFB", NID_aes_192_ofb},
-    #endif
-    #ifdef WOLFSSL_AES_256
-    {AES_256_OFB_TYPE, "AES-256-OFB", NID_aes_256_ofb},
-    #endif
+    #if defined(WOLFSSL_AES_OFB)
+        #ifdef WOLFSSL_AES_128
+        {AES_128_OFB_TYPE, "AES-128-OFB", NID_aes_128_ofb},
+        #endif
+        #ifdef WOLFSSL_AES_192
+        {AES_192_OFB_TYPE, "AES-192-OFB", NID_aes_192_ofb},
+        #endif
+        #ifdef WOLFSSL_AES_256
+        {AES_256_OFB_TYPE, "AES-256-OFB", NID_aes_256_ofb},
+        #endif
+    #endif /* WOLFSSL_AES_OFB */
 
-    #ifdef WOLFSSL_AES_128
-    {AES_128_XTS_TYPE, "AES-128-XTS", NID_aes_128_xts},
-    #endif
-    #ifdef WOLFSSL_AES_256
-    {AES_256_XTS_TYPE, "AES-256-XTS", NID_aes_256_xts},
-    #endif
+    #if defined(WOLFSSL_AES_XTS)
+        #ifdef WOLFSSL_AES_128
+        {AES_128_XTS_TYPE, "AES-128-XTS", NID_aes_128_xts},
+        #endif
+        #ifdef WOLFSSL_AES_256
+        {AES_256_XTS_TYPE, "AES-256-XTS", NID_aes_256_xts},
+        #endif
+    #endif /* WOLFSSL_AES_XTS */
 
-    #ifdef WOLFSSL_AES_128
-    {AES_128_GCM_TYPE, "AES-128-GCM", NID_aes_128_gcm},
-    #endif
-    #ifdef WOLFSSL_AES_192
-    {AES_192_GCM_TYPE, "AES-192-GCM", NID_aes_192_gcm},
-    #endif
-    #ifdef WOLFSSL_AES_256
-    {AES_256_GCM_TYPE, "AES-256-GCM", NID_aes_256_gcm},
-    #endif
-    #ifdef WOLFSSL_AES_128
-        {AES_128_CTR_TYPE, "AES-128-CTR", NID_aes_128_ctr},
-    #endif
-    #ifdef WOLFSSL_AES_192
-        {AES_192_CTR_TYPE, "AES-192-CTR", NID_aes_192_ctr},
-    #endif
-    #ifdef WOLFSSL_AES_256
-        {AES_256_CTR_TYPE, "AES-256-CTR", NID_aes_256_ctr},
-    #endif
+    #if defined(HAVE_AESGCM)
+        #ifdef WOLFSSL_AES_128
+        {AES_128_GCM_TYPE, "AES-128-GCM", NID_aes_128_gcm},
+        #endif
+        #ifdef WOLFSSL_AES_192
+        {AES_192_GCM_TYPE, "AES-192-GCM", NID_aes_192_gcm},
+        #endif
+        #ifdef WOLFSSL_AES_256
+        {AES_256_GCM_TYPE, "AES-256-GCM", NID_aes_256_gcm},
+        #endif
+    #endif /* HAVE_AESGCM */
+    #if defined(WOLFSSL_AES_COUNTER)
+        #ifdef WOLFSSL_AES_128
+            {AES_128_CTR_TYPE, "AES-128-CTR", NID_aes_128_ctr},
+        #endif
+        #ifdef WOLFSSL_AES_192
+            {AES_192_CTR_TYPE, "AES-192-CTR", NID_aes_192_ctr},
+        #endif
+        #ifdef WOLFSSL_AES_256
+            {AES_256_CTR_TYPE, "AES-256-CTR", NID_aes_256_ctr},
+        #endif
+    #endif /* WOLFSSL_AES_COUNTER */
 
-    #ifdef WOLFSSL_AES_128
-        {AES_128_ECB_TYPE, "AES-128-ECB", NID_aes_128_ecb},
-    #endif
-    #ifdef WOLFSSL_AES_192
-        {AES_192_ECB_TYPE, "AES-192-ECB", NID_aes_192_ecb},
-    #endif
-    #ifdef WOLFSSL_AES_256
-        {AES_256_ECB_TYPE, "AES-256-ECB", NID_aes_256_ecb},
-    #endif
-
+        #ifdef WOLFSSL_AES_128
+            {AES_128_ECB_TYPE, "AES-128-ECB", NID_aes_128_ecb},
+        #endif
+        #ifdef WOLFSSL_AES_192
+            {AES_192_ECB_TYPE, "AES-192-ECB", NID_aes_192_ecb},
+        #endif
+        #ifdef WOLFSSL_AES_256
+            {AES_256_ECB_TYPE, "AES-256-ECB", NID_aes_256_ecb},
+        #endif
 #endif
 
 #ifndef NO_DES3
