@@ -1121,7 +1121,7 @@ static sp_digit sp_2048_dbl_8(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "add	x11, %[a], 64\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_dbl_8_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -1133,7 +1133,7 @@ static sp_digit sp_2048_dbl_8(sp_digit* r, const sp_digit* a)
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_2048_dbl_8_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "x3", "x4", "x5", "x6", "x11"
@@ -1523,7 +1523,7 @@ static sp_digit sp_2048_dbl_16(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "add	x11, %[a], 128\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_dbl_16_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -1535,7 +1535,7 @@ static sp_digit sp_2048_dbl_16(sp_digit* r, const sp_digit* a)
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_2048_dbl_16_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "x3", "x4", "x5", "x6", "x11"
@@ -1633,14 +1633,14 @@ SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x11, %[a], 256\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_add_32_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -1654,7 +1654,7 @@ static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_2048_add_32_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
@@ -1670,13 +1670,13 @@ static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_2048_sub_in_place_32(sp_digit* a, const sp_digit* b)
+SP_NOINLINE static sp_digit sp_2048_sub_in_place_32(sp_digit* a, const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x10, %[a], 256\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_sub_in_place_32_1:\n\t"
         "subs	%[c], xzr, %[c]\n\t"
         "ldp	x2, x3, [%[a]]\n\t"
         "ldp	x4, x5, [%[a], #16]\n\t"
@@ -1690,7 +1690,7 @@ static sp_digit sp_2048_sub_in_place_32(sp_digit* a, const sp_digit* b)
         "stp	x4, x5, [%[a]], #16\n\t"
         "csetm	%[c], cc\n\t"
         "cmp	%[a], x10\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_2048_sub_in_place_32_1\n\t"
         : [c] "+r" (c), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
@@ -1716,11 +1716,11 @@ static void sp_2048_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "mov	x6, 0\n\t"
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_mul_32_1:\n\t"
         "subs	x3, x5, 248\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_2048_mul_32_2:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[b], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -1731,17 +1731,17 @@ static void sp_2048_mul_32(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 256\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_2048_mul_32_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_2048_mul_32_2\n\t"
+        "\nsp_2048_mul_32_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 496\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_2048_mul_32_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
@@ -1765,13 +1765,13 @@ static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
         "mov	x5, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_sqr_32_1:\n\t"
         "subs	x3, x5, 248\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_2048_sqr_32_2:\n\t"
         "cmp	x4, x3\n\t"
-        "b.eq	4f\n\t"
+        "b.eq	sp_2048_sqr_32_4\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[a], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -1782,31 +1782,31 @@ static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "b.al	5f\n\t"
-        "\n4:\n\t"
+        "b.al	sp_2048_sqr_32_5\n\t"
+        "\nsp_2048_sqr_32_4:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "mul	x9, x10, x10\n\t"
         "umulh	x10, x10, x10\n\t"
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "\n5:\n\t"
+        "\nsp_2048_sqr_32_5:\n\t"
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 256\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_2048_sqr_32_3\n\t"
         "cmp	x3, x4\n\t"
-        "b.gt	3f\n\t"
+        "b.gt	sp_2048_sqr_32_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_2048_sqr_32_2\n\t"
+        "\nsp_2048_sqr_32_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 496\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_2048_sqr_32_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a)
@@ -1842,14 +1842,14 @@ static void sp_2048_mask_16(sp_digit* r, const sp_digit* a, sp_digit m)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_2048_add_16(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_2048_add_16(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x11, %[a], 128\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_add_16_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -1863,7 +1863,7 @@ static sp_digit sp_2048_add_16(sp_digit* r, const sp_digit* a,
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_2048_add_16_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
@@ -1879,13 +1879,13 @@ static sp_digit sp_2048_add_16(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_2048_sub_in_place_16(sp_digit* a, const sp_digit* b)
+SP_NOINLINE static sp_digit sp_2048_sub_in_place_16(sp_digit* a, const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x10, %[a], 128\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_sub_in_place_16_1:\n\t"
         "subs	%[c], xzr, %[c]\n\t"
         "ldp	x2, x3, [%[a]]\n\t"
         "ldp	x4, x5, [%[a], #16]\n\t"
@@ -1899,7 +1899,7 @@ static sp_digit sp_2048_sub_in_place_16(sp_digit* a, const sp_digit* b)
         "stp	x4, x5, [%[a]], #16\n\t"
         "csetm	%[c], cc\n\t"
         "cmp	%[a], x10\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_2048_sub_in_place_16_1\n\t"
         : [c] "+r" (c), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
@@ -1925,11 +1925,11 @@ static void sp_2048_mul_16(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "mov	x6, 0\n\t"
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_mul_16_1:\n\t"
         "subs	x3, x5, 120\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_2048_mul_16_2:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[b], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -1940,17 +1940,17 @@ static void sp_2048_mul_16(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 128\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_2048_mul_16_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_2048_mul_16_2\n\t"
+        "\nsp_2048_mul_16_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 240\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_2048_mul_16_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
@@ -1974,13 +1974,13 @@ static void sp_2048_sqr_16(sp_digit* r, const sp_digit* a)
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
         "mov	x5, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_sqr_16_1:\n\t"
         "subs	x3, x5, 120\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_2048_sqr_16_2:\n\t"
         "cmp	x4, x3\n\t"
-        "b.eq	4f\n\t"
+        "b.eq	sp_2048_sqr_16_4\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[a], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -1991,31 +1991,31 @@ static void sp_2048_sqr_16(sp_digit* r, const sp_digit* a)
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "b.al	5f\n\t"
-        "\n4:\n\t"
+        "b.al	sp_2048_sqr_16_5\n\t"
+        "\nsp_2048_sqr_16_4:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "mul	x9, x10, x10\n\t"
         "umulh	x10, x10, x10\n\t"
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "\n5:\n\t"
+        "\nsp_2048_sqr_16_5:\n\t"
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 128\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_2048_sqr_16_3\n\t"
         "cmp	x3, x4\n\t"
-        "b.gt	3f\n\t"
+        "b.gt	sp_2048_sqr_16_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_2048_sqr_16_2\n\t"
+        "\nsp_2048_sqr_16_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 240\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_2048_sqr_16_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a)
@@ -2049,16 +2049,16 @@ static void sp_2048_mont_setup(const sp_digit* a, sp_digit* rho)
     *rho = (sp_digit)0 - x;
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         sp_digit b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldr	x8, [%[a]]\n\t"
@@ -2068,7 +2068,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "str	x5, [%[r]]\n\t"
         "mov	x5, 0\n\t"
         "mov	x9, #8\n\t"
-        "1:\n\t"
+        "sp_2048_mul_d_32_1:\n\t"
         "ldr	x8, [%[a], x9]\n\t"
         "mul	x6, %[b], x8\n\t"
         "umulh	x7, %[b], x8\n\t"
@@ -2081,13 +2081,23 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         "mov	x5, #0\n\t"
         "add	x9, x9, #8\n\t"
         "cmp	x9, 256\n\t"
-        "b.lt	1b\n\t"
+        "b.lt	sp_2048_mul_d_32_1\n\t"
         "str	x3, [%[r], 256]\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
+}
 #else
+/* Mul a by digit b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision digit.
+ */
+static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
+        sp_digit b)
+{
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldp	x8, x9, [%[a]]\n\t"
@@ -2360,8 +2370,8 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
-#endif
 }
+#endif
 
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -2378,6 +2388,41 @@ static void sp_2048_mont_norm_16(sp_digit* r, const sp_digit* m)
     sp_2048_sub_in_place_16(r, m);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_2048_cond_sub_16(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "sp_2048_cond_sub_16_1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "csetm	%[c], cc\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 128\n\t"
+        "b.lt	sp_2048_cond_sub_16_1\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+}
+#else
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -2389,29 +2434,6 @@ static void sp_2048_mont_norm_16(sp_digit* r, const sp_digit* m)
 static sp_digit sp_2048_cond_sub_16(sp_digit* r, const sp_digit* a, const sp_digit* b,
         sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "csetm	%[c], cc\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 128\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
     __asm__ __volatile__ (
 
         "ldp	x5, x7, [%[b], 0]\n\t"
@@ -2477,8 +2499,8 @@ static sp_digit sp_2048_cond_sub_16(sp_digit* r, const sp_digit* a, const sp_dig
     );
 
     return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
@@ -2502,7 +2524,7 @@ SP_NOINLINE static void sp_2048_mont_reduce_16(sp_digit* a, const sp_digit* m,
         "# i = 16\n\t"
         "mov	x4, 16\n\t"
         "ldp	x12, x13, [%[a], 0]\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_mont_reduce_16_1:\n\t"
         "# mu = a[i] * mp\n\t"
         "mul	x9, %[mp], x12\n\t"
         "# a[i+0] += m[0] * mu\n\t"
@@ -2650,7 +2672,7 @@ SP_NOINLINE static void sp_2048_mont_reduce_16(sp_digit* a, const sp_digit* m,
         "adc	x3, x3, xzr\n\t"
         "subs	x4, x4, 1\n\t"
         "add	%[a], %[a], 8\n\t"
-        "bne	1b\n\t"
+        "bne	sp_2048_mont_reduce_16_1\n\t"
         "# x12 and x13 hold a[0] and a[1]\n\t"
         "# Create mask\n\t"
         "neg       x3, x3\n\t"
@@ -2743,16 +2765,16 @@ static void sp_2048_mont_sqr_16(sp_digit* r, const sp_digit* a,
     sp_2048_mont_reduce_16(r, m, mp);
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_2048_mul_d_16(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mul_d_16(sp_digit* r, const sp_digit* a,
         sp_digit b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldr	x8, [%[a]]\n\t"
@@ -2762,7 +2784,7 @@ static void sp_2048_mul_d_16(sp_digit* r, const sp_digit* a,
         "str	x5, [%[r]]\n\t"
         "mov	x5, 0\n\t"
         "mov	x9, #8\n\t"
-        "1:\n\t"
+        "sp_2048_mul_d_16_1:\n\t"
         "ldr	x8, [%[a], x9]\n\t"
         "mul	x6, %[b], x8\n\t"
         "umulh	x7, %[b], x8\n\t"
@@ -2775,13 +2797,23 @@ static void sp_2048_mul_d_16(sp_digit* r, const sp_digit* a,
         "mov	x5, #0\n\t"
         "add	x9, x9, #8\n\t"
         "cmp	x9, 128\n\t"
-        "b.lt	1b\n\t"
+        "b.lt	sp_2048_mul_d_16_1\n\t"
         "str	x3, [%[r], 128]\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
+}
 #else
+/* Mul a by digit b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision digit.
+ */
+static void sp_2048_mul_d_16(sp_digit* r, const sp_digit* a,
+        sp_digit b)
+{
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldp	x8, x9, [%[a]]\n\t"
@@ -2918,8 +2950,8 @@ static void sp_2048_mul_d_16(sp_digit* r, const sp_digit* a,
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
-#endif
 }
+#endif
 
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
@@ -2980,6 +3012,7 @@ static sp_digit div_2048_word_16(sp_digit d1, sp_digit d0, sp_digit div)
     return r;
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -2987,15 +3020,14 @@ static sp_digit div_2048_word_16(sp_digit d1, sp_digit d0, sp_digit div)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-static int64_t sp_2048_cmp_16(const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static int64_t sp_2048_cmp_16(const sp_digit* a, const sp_digit* b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
         "mov	x4, -1\n\t"
         "mov	x5, 120\n\t"
-        "1:\n\t"
+        "sp_2048_cmp_16_1:\n\t"
         "ldr	x6, [%[a], x5]\n\t"
         "ldr	x7, [%[b], x5]\n\t"
         "and	x6, x6, x4\n\t"
@@ -3005,13 +3037,25 @@ static int64_t sp_2048_cmp_16(const sp_digit* a, const sp_digit* b)
         "csel	x2, x4, x2, lo\n\t"
         "csel	x4, x4, xzr, eq\n\t"
         "subs	x5, x5, #8\n\t"
-        "b.cs	1b\n\t"
+        "b.cs	sp_2048_cmp_16_1\n\t"
         "eor	%[a], x2, x4\n\t"
         : [a] "+r" (a)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
+
+    return (int64_t)a;
+}
 #else
+/* Compare a with b in constant time.
+ *
+ * a  A single precision integer.
+ * b  A single precision integer.
+ * return -ve, 0 or +ve if a is less than, equal to or greater than b
+ * respectively.
+ */
+static int64_t sp_2048_cmp_16(const sp_digit* a, const sp_digit* b)
+{
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
@@ -3133,10 +3177,10 @@ static int64_t sp_2048_cmp_16(const sp_digit* a, const sp_digit* b)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
-#endif
 
     return (int64_t)a;
 }
+#endif
 
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
@@ -3506,6 +3550,41 @@ static void sp_2048_mont_norm_32(sp_digit* r, const sp_digit* m)
 }
 
 #endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
+#ifdef WOLFSSL_SP_SMALL
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "sp_2048_cond_sub_32_1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "csetm	%[c], cc\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 256\n\t"
+        "b.lt	sp_2048_cond_sub_32_1\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+}
+#else
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -3517,29 +3596,6 @@ static void sp_2048_mont_norm_32(sp_digit* r, const sp_digit* m)
 static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
         sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "csetm	%[c], cc\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 256\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
     __asm__ __volatile__ (
 
         "ldp	x5, x7, [%[b], 0]\n\t"
@@ -3661,8 +3717,8 @@ static sp_digit sp_2048_cond_sub_32(sp_digit* r, const sp_digit* a, const sp_dig
     );
 
     return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* Reduce the number back to 2048 bits using Montgomery reduction.
  *
@@ -3686,7 +3742,7 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
         "# i = 32\n\t"
         "mov	x4, 32\n\t"
         "ldp	x12, x13, [%[a], 0]\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_mont_reduce_32_1:\n\t"
         "# mu = a[i] * mp\n\t"
         "mul	x9, %[mp], x12\n\t"
         "# a[i+0] += m[0] * mu\n\t"
@@ -3994,7 +4050,7 @@ SP_NOINLINE static void sp_2048_mont_reduce_32(sp_digit* a, const sp_digit* m,
         "adc	x3, x3, xzr\n\t"
         "subs	x4, x4, 1\n\t"
         "add	%[a], %[a], 8\n\t"
-        "bne	1b\n\t"
+        "bne	sp_2048_mont_reduce_32_1\n\t"
         "# x12 and x13 hold a[0] and a[1]\n\t"
         "# Create mask\n\t"
         "neg       x3, x3\n\t"
@@ -4232,6 +4288,7 @@ static void sp_2048_mask_32(sp_digit* r, const sp_digit* a, sp_digit m)
 #endif
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -4239,15 +4296,14 @@ static void sp_2048_mask_32(sp_digit* r, const sp_digit* a, sp_digit m)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-static int64_t sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static int64_t sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
         "mov	x4, -1\n\t"
         "mov	x5, 248\n\t"
-        "1:\n\t"
+        "sp_2048_cmp_32_1:\n\t"
         "ldr	x6, [%[a], x5]\n\t"
         "ldr	x7, [%[b], x5]\n\t"
         "and	x6, x6, x4\n\t"
@@ -4257,13 +4313,25 @@ static int64_t sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
         "csel	x2, x4, x2, lo\n\t"
         "csel	x4, x4, xzr, eq\n\t"
         "subs	x5, x5, #8\n\t"
-        "b.cs	1b\n\t"
+        "b.cs	sp_2048_cmp_32_1\n\t"
         "eor	%[a], x2, x4\n\t"
         : [a] "+r" (a)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
+
+    return (int64_t)a;
+}
 #else
+/* Compare a with b in constant time.
+ *
+ * a  A single precision integer.
+ * b  A single precision integer.
+ * return -ve, 0 or +ve if a is less than, equal to or greater than b
+ * respectively.
+ */
+static int64_t sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
+{
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
@@ -4497,10 +4565,10 @@ static int64_t sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
-#endif
 
     return (int64_t)a;
 }
+#endif
 
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
@@ -4560,14 +4628,14 @@ static WC_INLINE int sp_2048_mod_32(sp_digit* r, const sp_digit* a, const sp_dig
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_2048_sub_32(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_2048_sub_32(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x11, %[a], 256\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_sub_32_1:\n\t"
         "subs	%[c], xzr, %[c]\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -4581,7 +4649,7 @@ static sp_digit sp_2048_sub_32(sp_digit* r, const sp_digit* a,
         "stp	x5, x6, [%[r]], #16\n\t"
         "csetm	%[c], cc\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_2048_sub_32_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
@@ -5184,6 +5252,41 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#ifdef WOLFSSL_SP_SMALL
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_2048_cond_add_16(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "sp_2048_cond_add_16_1:\n\t"
+        "adds	%[c], %[c], #-1\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "adcs	x4, x4, x5\n\t"
+        "cset	%[c], cs\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 128\n\t"
+        "b.lt	sp_2048_cond_add_16_1\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+}
+#else
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -5195,29 +5298,9 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, const mp_int* em,
 static sp_digit sp_2048_cond_add_16(sp_digit* r, const sp_digit* a, const sp_digit* b,
         sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
     sp_digit c = 0;
 
     __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "adds	%[c], %[c], #-1\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "adcs	x4, x4, x5\n\t"
-        "cset	%[c], cs\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 128\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
     __asm__ __volatile__ (
 
         "ldp	x5, x7, [%[b], 0]\n\t"
@@ -5283,8 +5366,8 @@ static sp_digit sp_2048_cond_add_16(sp_digit* r, const sp_digit* a, const sp_dig
     );
 
     return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* RSA private key operation.
  *
@@ -8183,7 +8266,7 @@ static sp_digit sp_3072_dbl_12(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "add	x11, %[a], 96\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_dbl_12_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -8195,7 +8278,7 @@ static sp_digit sp_3072_dbl_12(sp_digit* r, const sp_digit* a)
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_3072_dbl_12_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "x3", "x4", "x5", "x6", "x11"
@@ -8690,7 +8773,7 @@ static sp_digit sp_3072_dbl_24(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "add	x11, %[a], 192\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_dbl_24_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -8702,7 +8785,7 @@ static sp_digit sp_3072_dbl_24(sp_digit* r, const sp_digit* a)
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_3072_dbl_24_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "x3", "x4", "x5", "x6", "x11"
@@ -8818,14 +8901,14 @@ SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x11, %[a], 384\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_add_48_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -8839,7 +8922,7 @@ static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_3072_add_48_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
@@ -8855,13 +8938,13 @@ static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_3072_sub_in_place_48(sp_digit* a, const sp_digit* b)
+SP_NOINLINE static sp_digit sp_3072_sub_in_place_48(sp_digit* a, const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x10, %[a], 384\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_sub_in_place_48_1:\n\t"
         "subs	%[c], xzr, %[c]\n\t"
         "ldp	x2, x3, [%[a]]\n\t"
         "ldp	x4, x5, [%[a], #16]\n\t"
@@ -8875,7 +8958,7 @@ static sp_digit sp_3072_sub_in_place_48(sp_digit* a, const sp_digit* b)
         "stp	x4, x5, [%[a]], #16\n\t"
         "csetm	%[c], cc\n\t"
         "cmp	%[a], x10\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_3072_sub_in_place_48_1\n\t"
         : [c] "+r" (c), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
@@ -8901,11 +8984,11 @@ static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "mov	x6, 0\n\t"
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_mul_48_1:\n\t"
         "subs	x3, x5, 376\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_3072_mul_48_2:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[b], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -8916,17 +8999,17 @@ static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 384\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_3072_mul_48_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_3072_mul_48_2\n\t"
+        "\nsp_3072_mul_48_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 752\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_3072_mul_48_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
@@ -8950,13 +9033,13 @@ static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
         "mov	x5, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_sqr_48_1:\n\t"
         "subs	x3, x5, 376\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_3072_sqr_48_2:\n\t"
         "cmp	x4, x3\n\t"
-        "b.eq	4f\n\t"
+        "b.eq	sp_3072_sqr_48_4\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[a], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -8967,31 +9050,31 @@ static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "b.al	5f\n\t"
-        "\n4:\n\t"
+        "b.al	sp_3072_sqr_48_5\n\t"
+        "\nsp_3072_sqr_48_4:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "mul	x9, x10, x10\n\t"
         "umulh	x10, x10, x10\n\t"
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "\n5:\n\t"
+        "\nsp_3072_sqr_48_5:\n\t"
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 384\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_3072_sqr_48_3\n\t"
         "cmp	x3, x4\n\t"
-        "b.gt	3f\n\t"
+        "b.gt	sp_3072_sqr_48_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_3072_sqr_48_2\n\t"
+        "\nsp_3072_sqr_48_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 752\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_3072_sqr_48_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a)
@@ -9027,14 +9110,14 @@ static void sp_3072_mask_24(sp_digit* r, const sp_digit* a, sp_digit m)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_3072_add_24(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_3072_add_24(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x11, %[a], 192\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_add_24_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -9048,7 +9131,7 @@ static sp_digit sp_3072_add_24(sp_digit* r, const sp_digit* a,
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_3072_add_24_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
@@ -9064,13 +9147,13 @@ static sp_digit sp_3072_add_24(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_3072_sub_in_place_24(sp_digit* a, const sp_digit* b)
+SP_NOINLINE static sp_digit sp_3072_sub_in_place_24(sp_digit* a, const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x10, %[a], 192\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_sub_in_place_24_1:\n\t"
         "subs	%[c], xzr, %[c]\n\t"
         "ldp	x2, x3, [%[a]]\n\t"
         "ldp	x4, x5, [%[a], #16]\n\t"
@@ -9084,7 +9167,7 @@ static sp_digit sp_3072_sub_in_place_24(sp_digit* a, const sp_digit* b)
         "stp	x4, x5, [%[a]], #16\n\t"
         "csetm	%[c], cc\n\t"
         "cmp	%[a], x10\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_3072_sub_in_place_24_1\n\t"
         : [c] "+r" (c), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
@@ -9110,11 +9193,11 @@ static void sp_3072_mul_24(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "mov	x6, 0\n\t"
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_mul_24_1:\n\t"
         "subs	x3, x5, 184\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_3072_mul_24_2:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[b], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -9125,17 +9208,17 @@ static void sp_3072_mul_24(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 192\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_3072_mul_24_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_3072_mul_24_2\n\t"
+        "\nsp_3072_mul_24_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 368\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_3072_mul_24_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
@@ -9159,13 +9242,13 @@ static void sp_3072_sqr_24(sp_digit* r, const sp_digit* a)
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
         "mov	x5, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_sqr_24_1:\n\t"
         "subs	x3, x5, 184\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_3072_sqr_24_2:\n\t"
         "cmp	x4, x3\n\t"
-        "b.eq	4f\n\t"
+        "b.eq	sp_3072_sqr_24_4\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[a], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -9176,31 +9259,31 @@ static void sp_3072_sqr_24(sp_digit* r, const sp_digit* a)
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "b.al	5f\n\t"
-        "\n4:\n\t"
+        "b.al	sp_3072_sqr_24_5\n\t"
+        "\nsp_3072_sqr_24_4:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "mul	x9, x10, x10\n\t"
         "umulh	x10, x10, x10\n\t"
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "\n5:\n\t"
+        "\nsp_3072_sqr_24_5:\n\t"
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 192\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_3072_sqr_24_3\n\t"
         "cmp	x3, x4\n\t"
-        "b.gt	3f\n\t"
+        "b.gt	sp_3072_sqr_24_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_3072_sqr_24_2\n\t"
+        "\nsp_3072_sqr_24_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 368\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_3072_sqr_24_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a)
@@ -9234,16 +9317,16 @@ static void sp_3072_mont_setup(const sp_digit* a, sp_digit* rho)
     *rho = (sp_digit)0 - x;
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         sp_digit b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldr	x8, [%[a]]\n\t"
@@ -9253,7 +9336,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "str	x5, [%[r]]\n\t"
         "mov	x5, 0\n\t"
         "mov	x9, #8\n\t"
-        "1:\n\t"
+        "sp_3072_mul_d_48_1:\n\t"
         "ldr	x8, [%[a], x9]\n\t"
         "mul	x6, %[b], x8\n\t"
         "umulh	x7, %[b], x8\n\t"
@@ -9266,13 +9349,23 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         "mov	x5, #0\n\t"
         "add	x9, x9, #8\n\t"
         "cmp	x9, 384\n\t"
-        "b.lt	1b\n\t"
+        "b.lt	sp_3072_mul_d_48_1\n\t"
         "str	x3, [%[r], 384]\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
+}
 #else
+/* Mul a by digit b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision digit.
+ */
+static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
+        sp_digit b)
+{
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldp	x8, x9, [%[a]]\n\t"
@@ -9681,8 +9774,8 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
-#endif
 }
+#endif
 
 #if (defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -9699,6 +9792,41 @@ static void sp_3072_mont_norm_24(sp_digit* r, const sp_digit* m)
     sp_3072_sub_in_place_24(r, m);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_3072_cond_sub_24(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "sp_3072_cond_sub_24_1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "csetm	%[c], cc\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 192\n\t"
+        "b.lt	sp_3072_cond_sub_24_1\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+}
+#else
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -9710,29 +9838,6 @@ static void sp_3072_mont_norm_24(sp_digit* r, const sp_digit* m)
 static sp_digit sp_3072_cond_sub_24(sp_digit* r, const sp_digit* a, const sp_digit* b,
         sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "csetm	%[c], cc\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 192\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
     __asm__ __volatile__ (
 
         "ldp	x5, x7, [%[b], 0]\n\t"
@@ -9826,8 +9931,8 @@ static sp_digit sp_3072_cond_sub_24(sp_digit* r, const sp_digit* a, const sp_dig
     );
 
     return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
@@ -9851,7 +9956,7 @@ SP_NOINLINE static void sp_3072_mont_reduce_24(sp_digit* a, const sp_digit* m,
         "# i = 24\n\t"
         "mov	x4, 24\n\t"
         "ldp	x12, x13, [%[a], 0]\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_mont_reduce_24_1:\n\t"
         "# mu = a[i] * mp\n\t"
         "mul	x9, %[mp], x12\n\t"
         "# a[i+0] += m[0] * mu\n\t"
@@ -10079,7 +10184,7 @@ SP_NOINLINE static void sp_3072_mont_reduce_24(sp_digit* a, const sp_digit* m,
         "adc	x3, x3, xzr\n\t"
         "subs	x4, x4, 1\n\t"
         "add	%[a], %[a], 8\n\t"
-        "bne	1b\n\t"
+        "bne	sp_3072_mont_reduce_24_1\n\t"
         "# x12 and x13 hold a[0] and a[1]\n\t"
         "# Create mask\n\t"
         "neg       x3, x3\n\t"
@@ -10200,16 +10305,16 @@ static void sp_3072_mont_sqr_24(sp_digit* r, const sp_digit* a,
     sp_3072_mont_reduce_24(r, m, mp);
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_3072_mul_d_24(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mul_d_24(sp_digit* r, const sp_digit* a,
         sp_digit b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldr	x8, [%[a]]\n\t"
@@ -10219,7 +10324,7 @@ static void sp_3072_mul_d_24(sp_digit* r, const sp_digit* a,
         "str	x5, [%[r]]\n\t"
         "mov	x5, 0\n\t"
         "mov	x9, #8\n\t"
-        "1:\n\t"
+        "sp_3072_mul_d_24_1:\n\t"
         "ldr	x8, [%[a], x9]\n\t"
         "mul	x6, %[b], x8\n\t"
         "umulh	x7, %[b], x8\n\t"
@@ -10232,13 +10337,23 @@ static void sp_3072_mul_d_24(sp_digit* r, const sp_digit* a,
         "mov	x5, #0\n\t"
         "add	x9, x9, #8\n\t"
         "cmp	x9, 192\n\t"
-        "b.lt	1b\n\t"
+        "b.lt	sp_3072_mul_d_24_1\n\t"
         "str	x3, [%[r], 192]\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
+}
 #else
+/* Mul a by digit b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision digit.
+ */
+static void sp_3072_mul_d_24(sp_digit* r, const sp_digit* a,
+        sp_digit b)
+{
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldp	x8, x9, [%[a]]\n\t"
@@ -10443,8 +10558,8 @@ static void sp_3072_mul_d_24(sp_digit* r, const sp_digit* a,
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
-#endif
 }
+#endif
 
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
@@ -10505,6 +10620,7 @@ static sp_digit div_3072_word_24(sp_digit d1, sp_digit d0, sp_digit div)
     return r;
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -10512,15 +10628,14 @@ static sp_digit div_3072_word_24(sp_digit d1, sp_digit d0, sp_digit div)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-static int64_t sp_3072_cmp_24(const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static int64_t sp_3072_cmp_24(const sp_digit* a, const sp_digit* b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
         "mov	x4, -1\n\t"
         "mov	x5, 184\n\t"
-        "1:\n\t"
+        "sp_3072_cmp_24_1:\n\t"
         "ldr	x6, [%[a], x5]\n\t"
         "ldr	x7, [%[b], x5]\n\t"
         "and	x6, x6, x4\n\t"
@@ -10530,13 +10645,25 @@ static int64_t sp_3072_cmp_24(const sp_digit* a, const sp_digit* b)
         "csel	x2, x4, x2, lo\n\t"
         "csel	x4, x4, xzr, eq\n\t"
         "subs	x5, x5, #8\n\t"
-        "b.cs	1b\n\t"
+        "b.cs	sp_3072_cmp_24_1\n\t"
         "eor	%[a], x2, x4\n\t"
         : [a] "+r" (a)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
+
+    return (int64_t)a;
+}
 #else
+/* Compare a with b in constant time.
+ *
+ * a  A single precision integer.
+ * b  A single precision integer.
+ * return -ve, 0 or +ve if a is less than, equal to or greater than b
+ * respectively.
+ */
+static int64_t sp_3072_cmp_24(const sp_digit* a, const sp_digit* b)
+{
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
@@ -10714,10 +10841,10 @@ static int64_t sp_3072_cmp_24(const sp_digit* a, const sp_digit* b)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
-#endif
 
     return (int64_t)a;
 }
+#endif
 
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
@@ -11087,6 +11214,41 @@ static void sp_3072_mont_norm_48(sp_digit* r, const sp_digit* m)
 }
 
 #endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
+#ifdef WOLFSSL_SP_SMALL
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "sp_3072_cond_sub_48_1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "csetm	%[c], cc\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 384\n\t"
+        "b.lt	sp_3072_cond_sub_48_1\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+}
+#else
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -11098,29 +11260,6 @@ static void sp_3072_mont_norm_48(sp_digit* r, const sp_digit* m)
 static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a, const sp_digit* b,
         sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "csetm	%[c], cc\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 384\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
     __asm__ __volatile__ (
 
         "ldp	x5, x7, [%[b], 0]\n\t"
@@ -11298,8 +11437,8 @@ static sp_digit sp_3072_cond_sub_48(sp_digit* r, const sp_digit* a, const sp_dig
     );
 
     return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* Reduce the number back to 3072 bits using Montgomery reduction.
  *
@@ -11323,7 +11462,7 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
         "# i = 48\n\t"
         "mov	x4, 48\n\t"
         "ldp	x12, x13, [%[a], 0]\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_mont_reduce_48_1:\n\t"
         "# mu = a[i] * mp\n\t"
         "mul	x9, %[mp], x12\n\t"
         "# a[i+0] += m[0] * mu\n\t"
@@ -11791,7 +11930,7 @@ SP_NOINLINE static void sp_3072_mont_reduce_48(sp_digit* a, const sp_digit* m,
         "adc	x3, x3, xzr\n\t"
         "subs	x4, x4, 1\n\t"
         "add	%[a], %[a], 8\n\t"
-        "bne	1b\n\t"
+        "bne	sp_3072_mont_reduce_48_1\n\t"
         "# x12 and x13 hold a[0] and a[1]\n\t"
         "# Create mask\n\t"
         "neg       x3, x3\n\t"
@@ -12085,6 +12224,7 @@ static void sp_3072_mask_48(sp_digit* r, const sp_digit* a, sp_digit m)
 #endif
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -12092,15 +12232,14 @@ static void sp_3072_mask_48(sp_digit* r, const sp_digit* a, sp_digit m)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-static int64_t sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static int64_t sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
         "mov	x4, -1\n\t"
         "mov	x5, 376\n\t"
-        "1:\n\t"
+        "sp_3072_cmp_48_1:\n\t"
         "ldr	x6, [%[a], x5]\n\t"
         "ldr	x7, [%[b], x5]\n\t"
         "and	x6, x6, x4\n\t"
@@ -12110,13 +12249,25 @@ static int64_t sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
         "csel	x2, x4, x2, lo\n\t"
         "csel	x4, x4, xzr, eq\n\t"
         "subs	x5, x5, #8\n\t"
-        "b.cs	1b\n\t"
+        "b.cs	sp_3072_cmp_48_1\n\t"
         "eor	%[a], x2, x4\n\t"
         : [a] "+r" (a)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
+
+    return (int64_t)a;
+}
 #else
+/* Compare a with b in constant time.
+ *
+ * a  A single precision integer.
+ * b  A single precision integer.
+ * return -ve, 0 or +ve if a is less than, equal to or greater than b
+ * respectively.
+ */
+static int64_t sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
+{
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
@@ -12462,10 +12613,10 @@ static int64_t sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
-#endif
 
     return (int64_t)a;
 }
+#endif
 
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
@@ -12525,14 +12676,14 @@ static WC_INLINE int sp_3072_mod_48(sp_digit* r, const sp_digit* a, const sp_dig
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_3072_sub_48(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_3072_sub_48(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x11, %[a], 384\n\t"
-        "\n1:\n\t"
+        "\nsp_3072_sub_48_1:\n\t"
         "subs	%[c], xzr, %[c]\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -12546,7 +12697,7 @@ static sp_digit sp_3072_sub_48(sp_digit* r, const sp_digit* a,
         "stp	x5, x6, [%[r]], #16\n\t"
         "csetm	%[c], cc\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_3072_sub_48_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
@@ -13189,6 +13340,41 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#ifdef WOLFSSL_SP_SMALL
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_3072_cond_add_24(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "sp_3072_cond_add_24_1:\n\t"
+        "adds	%[c], %[c], #-1\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "adcs	x4, x4, x5\n\t"
+        "cset	%[c], cs\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 192\n\t"
+        "b.lt	sp_3072_cond_add_24_1\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+}
+#else
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -13200,29 +13386,9 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, const mp_int* em,
 static sp_digit sp_3072_cond_add_24(sp_digit* r, const sp_digit* a, const sp_digit* b,
         sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
     sp_digit c = 0;
 
     __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "adds	%[c], %[c], #-1\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "adcs	x4, x4, x5\n\t"
-        "cset	%[c], cs\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 192\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
     __asm__ __volatile__ (
 
         "ldp	x5, x7, [%[b], 0]\n\t"
@@ -13316,8 +13482,8 @@ static sp_digit sp_3072_cond_add_24(sp_digit* r, const sp_digit* a, const sp_dig
     );
 
     return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* RSA private key operation.
  *
@@ -14900,7 +15066,7 @@ static sp_digit sp_2048_dbl_32(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "add	x11, %[a], 256\n\t"
-        "\n1:\n\t"
+        "\nsp_2048_dbl_32_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -14912,7 +15078,7 @@ static sp_digit sp_2048_dbl_32(sp_digit* r, const sp_digit* a)
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_2048_dbl_32_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "x3", "x4", "x5", "x6", "x11"
@@ -15046,14 +15212,14 @@ SP_NOINLINE static void sp_4096_sqr_64(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_4096_add_64(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_4096_add_64(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x11, %[a], 512\n\t"
-        "\n1:\n\t"
+        "\nsp_4096_add_64_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -15067,7 +15233,7 @@ static sp_digit sp_4096_add_64(sp_digit* r, const sp_digit* a,
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_4096_add_64_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
@@ -15083,13 +15249,13 @@ static sp_digit sp_4096_add_64(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_4096_sub_in_place_64(sp_digit* a, const sp_digit* b)
+SP_NOINLINE static sp_digit sp_4096_sub_in_place_64(sp_digit* a, const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x10, %[a], 512\n\t"
-        "\n1:\n\t"
+        "\nsp_4096_sub_in_place_64_1:\n\t"
         "subs	%[c], xzr, %[c]\n\t"
         "ldp	x2, x3, [%[a]]\n\t"
         "ldp	x4, x5, [%[a], #16]\n\t"
@@ -15103,7 +15269,7 @@ static sp_digit sp_4096_sub_in_place_64(sp_digit* a, const sp_digit* b)
         "stp	x4, x5, [%[a]], #16\n\t"
         "csetm	%[c], cc\n\t"
         "cmp	%[a], x10\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_4096_sub_in_place_64_1\n\t"
         : [c] "+r" (c), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
@@ -15129,11 +15295,11 @@ static void sp_4096_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "mov	x6, 0\n\t"
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_4096_mul_64_1:\n\t"
         "subs	x3, x5, 504\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_4096_mul_64_2:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[b], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -15144,17 +15310,17 @@ static void sp_4096_mul_64(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 512\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_4096_mul_64_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_4096_mul_64_2\n\t"
+        "\nsp_4096_mul_64_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 1008\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_4096_mul_64_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
@@ -15178,13 +15344,13 @@ static void sp_4096_sqr_64(sp_digit* r, const sp_digit* a)
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
         "mov	x5, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_4096_sqr_64_1:\n\t"
         "subs	x3, x5, 504\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_4096_sqr_64_2:\n\t"
         "cmp	x4, x3\n\t"
-        "b.eq	4f\n\t"
+        "b.eq	sp_4096_sqr_64_4\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[a], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -15195,31 +15361,31 @@ static void sp_4096_sqr_64(sp_digit* r, const sp_digit* a)
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "b.al	5f\n\t"
-        "\n4:\n\t"
+        "b.al	sp_4096_sqr_64_5\n\t"
+        "\nsp_4096_sqr_64_4:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "mul	x9, x10, x10\n\t"
         "umulh	x10, x10, x10\n\t"
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "\n5:\n\t"
+        "\nsp_4096_sqr_64_5:\n\t"
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 512\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_4096_sqr_64_3\n\t"
         "cmp	x3, x4\n\t"
-        "b.gt	3f\n\t"
+        "b.gt	sp_4096_sqr_64_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_4096_sqr_64_2\n\t"
+        "\nsp_4096_sqr_64_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 1008\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_4096_sqr_64_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a)
@@ -15251,16 +15417,16 @@ static void sp_4096_mont_setup(const sp_digit* a, sp_digit* rho)
     *rho = (sp_digit)0 - x;
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_4096_mul_d_64(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_4096_mul_d_64(sp_digit* r, const sp_digit* a,
         sp_digit b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldr	x8, [%[a]]\n\t"
@@ -15270,7 +15436,7 @@ static void sp_4096_mul_d_64(sp_digit* r, const sp_digit* a,
         "str	x5, [%[r]]\n\t"
         "mov	x5, 0\n\t"
         "mov	x9, #8\n\t"
-        "1:\n\t"
+        "sp_4096_mul_d_64_1:\n\t"
         "ldr	x8, [%[a], x9]\n\t"
         "mul	x6, %[b], x8\n\t"
         "umulh	x7, %[b], x8\n\t"
@@ -15283,13 +15449,23 @@ static void sp_4096_mul_d_64(sp_digit* r, const sp_digit* a,
         "mov	x5, #0\n\t"
         "add	x9, x9, #8\n\t"
         "cmp	x9, 512\n\t"
-        "b.lt	1b\n\t"
+        "b.lt	sp_4096_mul_d_64_1\n\t"
         "str	x3, [%[r], 512]\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
+}
 #else
+/* Mul a by digit b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision digit.
+ */
+static void sp_4096_mul_d_64(sp_digit* r, const sp_digit* a,
+        sp_digit b)
+{
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldp	x8, x9, [%[a]]\n\t"
@@ -15834,8 +16010,8 @@ static void sp_4096_mul_d_64(sp_digit* r, const sp_digit* a,
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
-#endif
 }
+#endif
 
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 /* r = 2^n mod m where n is the number of bits to reduce by.
@@ -15853,6 +16029,41 @@ static void sp_4096_mont_norm_64(sp_digit* r, const sp_digit* m)
 }
 
 #endif /* WOLFSSL_HAVE_SP_RSA | WOLFSSL_HAVE_SP_DH */
+#ifdef WOLFSSL_SP_SMALL
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_4096_cond_sub_64(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "sp_4096_cond_sub_64_1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "csetm	%[c], cc\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 512\n\t"
+        "b.lt	sp_4096_cond_sub_64_1\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+}
+#else
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -15864,29 +16075,6 @@ static void sp_4096_mont_norm_64(sp_digit* r, const sp_digit* m)
 static sp_digit sp_4096_cond_sub_64(sp_digit* r, const sp_digit* a, const sp_digit* b,
         sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "csetm	%[c], cc\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 512\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
     __asm__ __volatile__ (
 
         "ldp	x5, x7, [%[b], 0]\n\t"
@@ -16120,8 +16308,8 @@ static sp_digit sp_4096_cond_sub_64(sp_digit* r, const sp_digit* a, const sp_dig
     );
 
     return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* Reduce the number back to 4096 bits using Montgomery reduction.
  *
@@ -16145,7 +16333,7 @@ SP_NOINLINE static void sp_4096_mont_reduce_64(sp_digit* a, const sp_digit* m,
         "# i = 64\n\t"
         "mov	x4, 64\n\t"
         "ldp	x12, x13, [%[a], 0]\n\t"
-        "\n1:\n\t"
+        "\nsp_4096_mont_reduce_64_1:\n\t"
         "# mu = a[i] * mp\n\t"
         "mul	x9, %[mp], x12\n\t"
         "# a[i+0] += m[0] * mu\n\t"
@@ -16773,7 +16961,7 @@ SP_NOINLINE static void sp_4096_mont_reduce_64(sp_digit* a, const sp_digit* m,
         "adc	x3, x3, xzr\n\t"
         "subs	x4, x4, 1\n\t"
         "add	%[a], %[a], 8\n\t"
-        "bne	1b\n\t"
+        "bne	sp_4096_mont_reduce_64_1\n\t"
         "# x12 and x13 hold a[0] and a[1]\n\t"
         "# Create mask\n\t"
         "neg       x3, x3\n\t"
@@ -17123,6 +17311,7 @@ static void sp_4096_mask_64(sp_digit* r, const sp_digit* a, sp_digit m)
 #endif
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -17130,15 +17319,14 @@ static void sp_4096_mask_64(sp_digit* r, const sp_digit* a, sp_digit m)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-static int64_t sp_4096_cmp_64(const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static int64_t sp_4096_cmp_64(const sp_digit* a, const sp_digit* b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
         "mov	x4, -1\n\t"
         "mov	x5, 504\n\t"
-        "1:\n\t"
+        "sp_4096_cmp_64_1:\n\t"
         "ldr	x6, [%[a], x5]\n\t"
         "ldr	x7, [%[b], x5]\n\t"
         "and	x6, x6, x4\n\t"
@@ -17148,13 +17336,25 @@ static int64_t sp_4096_cmp_64(const sp_digit* a, const sp_digit* b)
         "csel	x2, x4, x2, lo\n\t"
         "csel	x4, x4, xzr, eq\n\t"
         "subs	x5, x5, #8\n\t"
-        "b.cs	1b\n\t"
+        "b.cs	sp_4096_cmp_64_1\n\t"
         "eor	%[a], x2, x4\n\t"
         : [a] "+r" (a)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
+
+    return (int64_t)a;
+}
 #else
+/* Compare a with b in constant time.
+ *
+ * a  A single precision integer.
+ * b  A single precision integer.
+ * return -ve, 0 or +ve if a is less than, equal to or greater than b
+ * respectively.
+ */
+static int64_t sp_4096_cmp_64(const sp_digit* a, const sp_digit* b)
+{
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
@@ -17612,10 +17812,10 @@ static int64_t sp_4096_cmp_64(const sp_digit* a, const sp_digit* b)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
-#endif
 
     return (int64_t)a;
 }
+#endif
 
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
@@ -17675,14 +17875,14 @@ static WC_INLINE int sp_4096_mod_64(sp_digit* r, const sp_digit* a, const sp_dig
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_4096_sub_64(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_4096_sub_64(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x11, %[a], 512\n\t"
-        "\n1:\n\t"
+        "\nsp_4096_sub_64_1:\n\t"
         "subs	%[c], xzr, %[c]\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -17696,7 +17896,7 @@ static sp_digit sp_4096_sub_64(sp_digit* r, const sp_digit* a,
         "stp	x5, x6, [%[r]], #16\n\t"
         "csetm	%[c], cc\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_4096_sub_64_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
@@ -18379,6 +18579,41 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 }
 
 #ifndef WOLFSSL_RSA_PUBLIC_ONLY
+#ifdef WOLFSSL_SP_SMALL
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_4096_cond_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "sp_4096_cond_add_32_1:\n\t"
+        "adds	%[c], %[c], #-1\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "adcs	x4, x4, x5\n\t"
+        "cset	%[c], cs\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 256\n\t"
+        "b.lt	sp_4096_cond_add_32_1\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+}
+#else
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -18390,29 +18625,9 @@ int sp_RsaPublic_4096(const byte* in, word32 inLen, const mp_int* em,
 static sp_digit sp_4096_cond_add_32(sp_digit* r, const sp_digit* a, const sp_digit* b,
         sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
     sp_digit c = 0;
 
     __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "adds	%[c], %[c], #-1\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "adcs	x4, x4, x5\n\t"
-        "cset	%[c], cs\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 256\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
     __asm__ __volatile__ (
 
         "ldp	x5, x7, [%[b], 0]\n\t"
@@ -18534,8 +18749,8 @@ static sp_digit sp_4096_cond_add_32(sp_digit* r, const sp_digit* a, const sp_dig
     );
 
     return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* RSA private key operation.
  *
@@ -19527,11 +19742,11 @@ static void sp_256_mul_4(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "mov	x6, 0\n\t"
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_256_mul_4_1:\n\t"
         "subs	x3, x5, 24\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_256_mul_4_2:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[b], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -19542,17 +19757,17 @@ static void sp_256_mul_4(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 32\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_256_mul_4_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_256_mul_4_2\n\t"
+        "\nsp_256_mul_4_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 48\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_256_mul_4_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
@@ -20548,6 +20763,7 @@ static void sp_256_mont_inv_4(sp_digit* r, const sp_digit* a, sp_digit* td)
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -20555,15 +20771,14 @@ static void sp_256_mont_inv_4(sp_digit* r, const sp_digit* a, sp_digit* td)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-static int64_t sp_256_cmp_4(const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static int64_t sp_256_cmp_4(const sp_digit* a, const sp_digit* b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
         "mov	x4, -1\n\t"
         "mov	x5, 24\n\t"
-        "1:\n\t"
+        "sp_256_cmp_4_1:\n\t"
         "ldr	x6, [%[a], x5]\n\t"
         "ldr	x7, [%[b], x5]\n\t"
         "and	x6, x6, x4\n\t"
@@ -20573,13 +20788,25 @@ static int64_t sp_256_cmp_4(const sp_digit* a, const sp_digit* b)
         "csel	x2, x4, x2, lo\n\t"
         "csel	x4, x4, xzr, eq\n\t"
         "subs	x5, x5, #8\n\t"
-        "b.cs	1b\n\t"
+        "b.cs	sp_256_cmp_4_1\n\t"
         "eor	%[a], x2, x4\n\t"
         : [a] "+r" (a)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12"
     );
+
+    return (int64_t)a;
+}
 #else
+/* Compare a with b in constant time.
+ *
+ * a  A single precision integer.
+ * b  A single precision integer.
+ * return -ve, 0 or +ve if a is less than, equal to or greater than b
+ * respectively.
+ */
+static int64_t sp_256_cmp_4(const sp_digit* a, const sp_digit* b)
+{
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
@@ -20617,10 +20844,10 @@ static int64_t sp_256_cmp_4(const sp_digit* a, const sp_digit* b)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12"
     );
-#endif
 
     return (int64_t)a;
 }
+#endif
 
 /* Normalize the values in each word to 64.
  *
@@ -38223,58 +38450,58 @@ static int sp_256_mod_inv_4(sp_digit* r, const sp_digit* a,
         "mov	x17, xzr\n\t"
         "mov	x19, xzr\n\t"
         "cmp	x6, 0\n\t"
-        "b.eq	10f\n\t"
+        "b.eq	sp_256_mod_inv_4_10\n\t"
         "mov	x25, 256\n\t"
         "clz	x23, x6\n\t"
         "sub	x23, x25, x23\n\t"
-        "b	13f\n\t"
-        "\n10:\n\t"
+        "b	sp_256_mod_inv_4_13\n\t"
+        "\nsp_256_mod_inv_4_10:\n\t"
         "cmp	x5, 0\n\t"
-        "b.eq	11f\n\t"
+        "b.eq	sp_256_mod_inv_4_11\n\t"
         "mov	x25, 192\n\t"
         "clz	x23, x5\n\t"
         "sub	x23, x25, x23\n\t"
-        "b	13f\n\t"
-        "\n11:\n\t"
+        "b	sp_256_mod_inv_4_13\n\t"
+        "\nsp_256_mod_inv_4_11:\n\t"
         "cmp	x4, 0\n\t"
-        "b.eq	12f\n\t"
+        "b.eq	sp_256_mod_inv_4_12\n\t"
         "mov	x25, 128\n\t"
         "clz	x23, x4\n\t"
         "sub	x23, x25, x23\n\t"
-        "b	13f\n\t"
-        "\n12:\n\t"
+        "b	sp_256_mod_inv_4_13\n\t"
+        "\nsp_256_mod_inv_4_12:\n\t"
         "mov	x25, 64\n\t"
         "clz	x23, x3\n\t"
         "sub	x23, x25, x23\n\t"
-        "\n13:\n\t"
+        "\nsp_256_mod_inv_4_13:\n\t"
         "cmp	x10, 0\n\t"
-        "b.eq	20f\n\t"
+        "b.eq	sp_256_mod_inv_4_20\n\t"
         "mov	x25, 256\n\t"
         "clz	x24, x10\n\t"
         "sub	x24, x25, x24\n\t"
-        "b	23f\n\t"
-        "\n20:\n\t"
+        "b	sp_256_mod_inv_4_23\n\t"
+        "\nsp_256_mod_inv_4_20:\n\t"
         "cmp	x9, 0\n\t"
-        "b.eq	21f\n\t"
+        "b.eq	sp_256_mod_inv_4_21\n\t"
         "mov	x25, 192\n\t"
         "clz	x24, x9\n\t"
         "sub	x24, x25, x24\n\t"
-        "b	23f\n\t"
-        "\n21:\n\t"
+        "b	sp_256_mod_inv_4_23\n\t"
+        "\nsp_256_mod_inv_4_21:\n\t"
         "cmp	x8, 0\n\t"
-        "b.eq	22f\n\t"
+        "b.eq	sp_256_mod_inv_4_22\n\t"
         "mov	x25, 128\n\t"
         "clz	x24, x8\n\t"
         "sub	x24, x25, x24\n\t"
-        "b	23f\n\t"
-        "\n22:\n\t"
+        "b	sp_256_mod_inv_4_23\n\t"
+        "\nsp_256_mod_inv_4_22:\n\t"
         "mov	x25, 64\n\t"
         "clz	x24, x7\n\t"
         "sub	x24, x25, x24\n\t"
-        "\n23:\n\t"
+        "\nsp_256_mod_inv_4_23:\n\t"
         "tst	x7, 1\n\t"
-        "b.ne	90f\n\t"
-        "\n1:\n\t"
+        "b.ne	sp_256_mod_inv_4_90\n\t"
+        "\nsp_256_mod_inv_4_1:\n\t"
         "lsr	x7, x7, 1\n\t"
         "lsr	x26, x8, 1\n\t"
         "lsr	x27, x9, 1\n\t"
@@ -38284,13 +38511,13 @@ static int sp_256_mod_inv_4(sp_digit* r, const sp_digit* a,
         "lsr	x10, x10, 1\n\t"
         "sub	x24, x24, 1\n\t"
         "ands	x25, x15, 1\n\t"
-        "b.eq	2f\n\t"
+        "b.eq	sp_256_mod_inv_4_2\n\t"
         "adds	x15, x15, x20\n\t"
         "adcs	x16, x16, x21\n\t"
         "adcs	x17, x17, x22\n\t"
         "adcs	x19, x19, %[m]\n\t"
         "cset	x25, cs\n\t"
-        "\n2:\n\t"
+        "\nsp_256_mod_inv_4_2:\n\t"
         "lsr	x15, x15, 1\n\t"
         "lsr	x26, x16, 1\n\t"
         "lsr	x27, x17, 1\n\t"
@@ -38300,27 +38527,27 @@ static int sp_256_mod_inv_4(sp_digit* r, const sp_digit* a,
         "orr	x17, x27, x19, lsl 63\n\t"
         "orr	x19, x28, x25, lsl 63\n\t"
         "tst	x7, 1\n\t"
-        "b.eq	1b\n\t"
-        "\n90:\n\t"
+        "b.eq	sp_256_mod_inv_4_1\n\t"
+        "\nsp_256_mod_inv_4_90:\n\t"
         "cmp	x23, 1\n\t"
-        "b.eq	100f\n\t"
+        "b.eq	sp_256_mod_inv_4_100\n\t"
         "cmp	x24, 1\n\t"
-        "b.eq	101f\n\t"
+        "b.eq	sp_256_mod_inv_4_101\n\t"
         "cmp	x23, x24\n\t"
-        "b.hi	91f\n\t"
-        "b.cc	92f\n\t"
+        "b.hi	sp_256_mod_inv_4_91\n\t"
+        "b.cc	sp_256_mod_inv_4_92\n\t"
         "cmp	x6, x10\n\t"
-        "b.hi	91f\n\t"
-        "b.cc	92f\n\t"
+        "b.hi	sp_256_mod_inv_4_91\n\t"
+        "b.cc	sp_256_mod_inv_4_92\n\t"
         "cmp	x5, x9\n\t"
-        "b.hi	91f\n\t"
-        "b.cc	92f\n\t"
+        "b.hi	sp_256_mod_inv_4_91\n\t"
+        "b.cc	sp_256_mod_inv_4_92\n\t"
         "cmp	x4, x8\n\t"
-        "b.hi	91f\n\t"
-        "b.cc	92f\n\t"
+        "b.hi	sp_256_mod_inv_4_91\n\t"
+        "b.cc	sp_256_mod_inv_4_92\n\t"
         "cmp	x3, x7\n\t"
-        "b.cc	92f\n\t"
-        "\n91:\n\t"
+        "b.cc	sp_256_mod_inv_4_92\n\t"
+        "\nsp_256_mod_inv_4_91:\n\t"
         "subs	x3, x3, x7\n\t"
         "sbcs	x4, x4, x8\n\t"
         "sbcs	x5, x5, x9\n\t"
@@ -38329,38 +38556,38 @@ static int sp_256_mod_inv_4(sp_digit* r, const sp_digit* a,
         "sbcs	x12, x12, x16\n\t"
         "sbcs	x13, x13, x17\n\t"
         "sbcs	x14, x14, x19\n\t"
-        "b.cs	30f\n\t"
+        "b.cs	sp_256_mod_inv_4_30\n\t"
         "adds	x11, x11, x20\n\t"
         "adcs	x12, x12, x21\n\t"
         "adcs	x13, x13, x22\n\t"
         "adc	x14, x14, %[m]\n\t"
-        "\n30:\n\t"
+        "\nsp_256_mod_inv_4_30:\n\t"
         "cmp	x6, 0\n\t"
-        "b.eq	40f\n\t"
+        "b.eq	sp_256_mod_inv_4_40\n\t"
         "mov	x25, 256\n\t"
         "clz	x23, x6\n\t"
         "sub	x23, x25, x23\n\t"
-        "b	43f\n\t"
-        "\n40:\n\t"
+        "b	sp_256_mod_inv_4_43\n\t"
+        "\nsp_256_mod_inv_4_40:\n\t"
         "cmp	x5, 0\n\t"
-        "b.eq	41f\n\t"
+        "b.eq	sp_256_mod_inv_4_41\n\t"
         "mov	x25, 192\n\t"
         "clz	x23, x5\n\t"
         "sub	x23, x25, x23\n\t"
-        "b	43f\n\t"
-        "\n41:\n\t"
+        "b	sp_256_mod_inv_4_43\n\t"
+        "\nsp_256_mod_inv_4_41:\n\t"
         "cmp	x4, 0\n\t"
-        "b.eq	42f\n\t"
+        "b.eq	sp_256_mod_inv_4_42\n\t"
         "mov	x25, 128\n\t"
         "clz	x23, x4\n\t"
         "sub	x23, x25, x23\n\t"
-        "b	43f\n\t"
-        "\n42:\n\t"
+        "b	sp_256_mod_inv_4_43\n\t"
+        "\nsp_256_mod_inv_4_42:\n\t"
         "mov	x25, 64\n\t"
         "clz	x23, x3\n\t"
         "sub	x23, x25, x23\n\t"
-        "\n43:\n\t"
-        "\n50:\n\t"
+        "\nsp_256_mod_inv_4_43:\n\t"
+        "\nsp_256_mod_inv_4_50:\n\t"
         "lsr	x3, x3, 1\n\t"
         "lsr	x26, x4, 1\n\t"
         "lsr	x27, x5, 1\n\t"
@@ -38370,13 +38597,13 @@ static int sp_256_mod_inv_4(sp_digit* r, const sp_digit* a,
         "lsr	x6, x6, 1\n\t"
         "sub	x23, x23, 1\n\t"
         "ands	x25, x11, 1\n\t"
-        "b.eq	51f\n\t"
+        "b.eq	sp_256_mod_inv_4_51\n\t"
         "adds	x11, x11, x20\n\t"
         "adcs	x12, x12, x21\n\t"
         "adcs	x13, x13, x22\n\t"
         "adcs	x14, x14, %[m]\n\t"
         "cset	x25, cs\n\t"
-        "\n51:\n\t"
+        "\nsp_256_mod_inv_4_51:\n\t"
         "lsr	x11, x11, 1\n\t"
         "lsr	x26, x12, 1\n\t"
         "lsr	x27, x13, 1\n\t"
@@ -38386,9 +38613,9 @@ static int sp_256_mod_inv_4(sp_digit* r, const sp_digit* a,
         "orr	x13, x27, x14, lsl 63\n\t"
         "orr	x14, x28, x25, lsl 63\n\t"
         "tst	x3, 1\n\t"
-        "b.eq	50b\n\t"
-        "b	90b\n\t"
-        "\n92:\n\t"
+        "b.eq	sp_256_mod_inv_4_50\n\t"
+        "b	sp_256_mod_inv_4_90\n\t"
+        "\nsp_256_mod_inv_4_92:\n\t"
         "subs	x7, x7, x3\n\t"
         "sbcs	x8, x8, x4\n\t"
         "sbcs	x9, x9, x5\n\t"
@@ -38397,38 +38624,38 @@ static int sp_256_mod_inv_4(sp_digit* r, const sp_digit* a,
         "sbcs	x16, x16, x12\n\t"
         "sbcs	x17, x17, x13\n\t"
         "sbcs	x19, x19, x14\n\t"
-        "b.cs	60f\n\t"
+        "b.cs	sp_256_mod_inv_4_60\n\t"
         "adds	x15, x15, x20\n\t"
         "adcs	x16, x16, x21\n\t"
         "adcs	x17, x17, x22\n\t"
         "adc	x19, x19, %[m]\n\t"
-        "\n60:\n\t"
+        "\nsp_256_mod_inv_4_60:\n\t"
         "cmp	x10, 0\n\t"
-        "b.eq	70f\n\t"
+        "b.eq	sp_256_mod_inv_4_70\n\t"
         "mov	x25, 256\n\t"
         "clz	x24, x10\n\t"
         "sub	x24, x25, x24\n\t"
-        "b	73f\n\t"
-        "\n70:\n\t"
+        "b	sp_256_mod_inv_4_73\n\t"
+        "\nsp_256_mod_inv_4_70:\n\t"
         "cmp	x9, 0\n\t"
-        "b.eq	71f\n\t"
+        "b.eq	sp_256_mod_inv_4_71\n\t"
         "mov	x25, 192\n\t"
         "clz	x24, x9\n\t"
         "sub	x24, x25, x24\n\t"
-        "b	73f\n\t"
-        "\n71:\n\t"
+        "b	sp_256_mod_inv_4_73\n\t"
+        "\nsp_256_mod_inv_4_71:\n\t"
         "cmp	x8, 0\n\t"
-        "b.eq	72f\n\t"
+        "b.eq	sp_256_mod_inv_4_72\n\t"
         "mov	x25, 128\n\t"
         "clz	x24, x8\n\t"
         "sub	x24, x25, x24\n\t"
-        "b	73f\n\t"
-        "\n72:\n\t"
+        "b	sp_256_mod_inv_4_73\n\t"
+        "\nsp_256_mod_inv_4_72:\n\t"
         "mov	x25, 64\n\t"
         "clz	x24, x7\n\t"
         "sub	x24, x25, x24\n\t"
-        "\n73:\n\t"
-        "\n80:\n\t"
+        "\nsp_256_mod_inv_4_73:\n\t"
+        "\nsp_256_mod_inv_4_80:\n\t"
         "lsr	x7, x7, 1\n\t"
         "lsr	x26, x8, 1\n\t"
         "lsr	x27, x9, 1\n\t"
@@ -38438,13 +38665,13 @@ static int sp_256_mod_inv_4(sp_digit* r, const sp_digit* a,
         "lsr	x10, x10, 1\n\t"
         "sub	x24, x24, 1\n\t"
         "ands	x25, x15, 1\n\t"
-        "b.eq	81f\n\t"
+        "b.eq	sp_256_mod_inv_4_81\n\t"
         "adds	x15, x15, x20\n\t"
         "adcs	x16, x16, x21\n\t"
         "adcs	x17, x17, x22\n\t"
         "adcs	x19, x19, %[m]\n\t"
         "cset	x25, cs\n\t"
-        "\n81:\n\t"
+        "\nsp_256_mod_inv_4_81:\n\t"
         "lsr	x15, x15, 1\n\t"
         "lsr	x26, x16, 1\n\t"
         "lsr	x27, x17, 1\n\t"
@@ -38454,20 +38681,20 @@ static int sp_256_mod_inv_4(sp_digit* r, const sp_digit* a,
         "orr	x17, x27, x19, lsl 63\n\t"
         "orr	x19, x28, x25, lsl 63\n\t"
         "tst	x7, 1\n\t"
-        "b.eq	80b\n\t"
-        "b	90b\n\t"
-        "\n100:\n\t"
+        "b.eq	sp_256_mod_inv_4_80\n\t"
+        "b	sp_256_mod_inv_4_90\n\t"
+        "\nsp_256_mod_inv_4_100:\n\t"
         "str	x11, [%[r], 0]\n\t"
         "str	x12, [%[r], 8]\n\t"
         "str	x13, [%[r], 16]\n\t"
         "str	x14, [%[r], 24]\n\t"
-        "b	102f\n\t"
-        "\n101:\n\t"
+        "b	sp_256_mod_inv_4_102\n\t"
+        "\nsp_256_mod_inv_4_101:\n\t"
         "str	x15, [%[r], 0]\n\t"
         "str	x16, [%[r], 8]\n\t"
         "str	x17, [%[r], 16]\n\t"
         "str	x19, [%[r], 24]\n\t"
-        "\n102:\n\t"
+        "\nsp_256_mod_inv_4_102:\n\t"
         : [m] "+r" (m)
         : [r] "r" (r), [a] "r" (a)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"
@@ -39477,11 +39704,11 @@ static void sp_384_mul_6(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "mov	x6, 0\n\t"
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_384_mul_6_1:\n\t"
         "subs	x3, x5, 40\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_384_mul_6_2:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[b], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -39492,17 +39719,17 @@ static void sp_384_mul_6(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 48\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_384_mul_6_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_384_mul_6_2\n\t"
+        "\nsp_384_mul_6_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 80\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_384_mul_6_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
@@ -39772,13 +39999,13 @@ static void sp_384_sqr_6(sp_digit* r, const sp_digit* a)
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
         "mov	x5, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_384_sqr_6_1:\n\t"
         "subs	x3, x5, 40\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_384_sqr_6_2:\n\t"
         "cmp	x4, x3\n\t"
-        "b.eq	4f\n\t"
+        "b.eq	sp_384_sqr_6_4\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[a], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -39789,31 +40016,31 @@ static void sp_384_sqr_6(sp_digit* r, const sp_digit* a)
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "b.al	5f\n\t"
-        "\n4:\n\t"
+        "b.al	sp_384_sqr_6_5\n\t"
+        "\nsp_384_sqr_6_4:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "mul	x9, x10, x10\n\t"
         "umulh	x10, x10, x10\n\t"
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "\n5:\n\t"
+        "\nsp_384_sqr_6_5:\n\t"
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 48\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_384_sqr_6_3\n\t"
         "cmp	x3, x4\n\t"
-        "b.gt	3f\n\t"
+        "b.gt	sp_384_sqr_6_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_384_sqr_6_2\n\t"
+        "\nsp_384_sqr_6_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 80\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_384_sqr_6_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a)
@@ -40456,7 +40683,7 @@ SP_NOINLINE static void sp_384_mont_reduce_6(sp_digit* a, const sp_digit* m,
         "# i = 6\n\t"
         "mov	x4, 6\n\t"
         "ldp	x12, x13, [%[a], 0]\n\t"
-        "\n1:\n\t"
+        "\nsp_384_mont_reduce_6_1:\n\t"
         "# mu = a[i] * mp\n\t"
         "mul	x9, %[mp], x12\n\t"
         "# a[i+0] += m[0] * mu\n\t"
@@ -40512,7 +40739,7 @@ SP_NOINLINE static void sp_384_mont_reduce_6(sp_digit* a, const sp_digit* m,
         "adc	x3, x3, xzr\n\t"
         "subs	x4, x4, 1\n\t"
         "add	%[a], %[a], 8\n\t"
-        "bne	1b\n\t"
+        "bne	sp_384_mont_reduce_6_1\n\t"
         "# x12 and x13 hold a[0] and a[1]\n\t"
         "# Create mask\n\t"
         "neg       x3, x3\n\t"
@@ -40686,6 +40913,7 @@ static void sp_384_mont_inv_6(sp_digit* r, const sp_digit* a, sp_digit* td)
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -40693,15 +40921,14 @@ static void sp_384_mont_inv_6(sp_digit* r, const sp_digit* a, sp_digit* td)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-static int64_t sp_384_cmp_6(const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static int64_t sp_384_cmp_6(const sp_digit* a, const sp_digit* b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
         "mov	x4, -1\n\t"
         "mov	x5, 40\n\t"
-        "1:\n\t"
+        "sp_384_cmp_6_1:\n\t"
         "ldr	x6, [%[a], x5]\n\t"
         "ldr	x7, [%[b], x5]\n\t"
         "and	x6, x6, x4\n\t"
@@ -40711,13 +40938,25 @@ static int64_t sp_384_cmp_6(const sp_digit* a, const sp_digit* b)
         "csel	x2, x4, x2, lo\n\t"
         "csel	x4, x4, xzr, eq\n\t"
         "subs	x5, x5, #8\n\t"
-        "b.cs	1b\n\t"
+        "b.cs	sp_384_cmp_6_1\n\t"
         "eor	%[a], x2, x4\n\t"
         : [a] "+r" (a)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16"
     );
+
+    return (int64_t)a;
+}
 #else
+/* Compare a with b in constant time.
+ *
+ * a  A single precision integer.
+ * b  A single precision integer.
+ * return -ve, 0 or +ve if a is less than, equal to or greater than b
+ * respectively.
+ */
+static int64_t sp_384_cmp_6(const sp_digit* a, const sp_digit* b)
+{
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
@@ -40769,10 +41008,10 @@ static int64_t sp_384_cmp_6(const sp_digit* a, const sp_digit* b)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16"
     );
-#endif
 
     return (int64_t)a;
 }
+#endif
 
 /* Normalize the values in each word to 64.
  *
@@ -40869,6 +41108,41 @@ static void sp_384_mont_tpl_6(sp_digit* r, const sp_digit* a, const sp_digit* m)
     sp_384_cond_sub_6(r, r, m, 0 - o);
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_384_cond_add_6(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "sp_384_cond_add_6_1:\n\t"
+        "adds	%[c], %[c], #-1\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "adcs	x4, x4, x5\n\t"
+        "cset	%[c], cs\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 48\n\t"
+        "b.lt	sp_384_cond_add_6_1\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+}
+#else
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -40880,29 +41154,9 @@ static void sp_384_mont_tpl_6(sp_digit* r, const sp_digit* a, const sp_digit* m)
 static sp_digit sp_384_cond_add_6(sp_digit* r, const sp_digit* a, const sp_digit* b,
         sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
     sp_digit c = 0;
 
     __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "adds	%[c], %[c], #-1\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "adcs	x4, x4, x5\n\t"
-        "cset	%[c], cs\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 48\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
     __asm__ __volatile__ (
 
         "ldp	x5, x7, [%[b], 0]\n\t"
@@ -40933,8 +41187,8 @@ static sp_digit sp_384_cond_add_6(sp_digit* r, const sp_digit* a, const sp_digit
     );
 
     return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 /* Subtract two Montgomery form numbers (r = a - b % m).
  *
@@ -63185,16 +63439,16 @@ static sp_digit sp_384_sub_in_place_6(sp_digit* a, const sp_digit* b)
     return (sp_digit)a;
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_384_mul_d_6(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_384_mul_d_6(sp_digit* r, const sp_digit* a,
         sp_digit b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldr	x8, [%[a]]\n\t"
@@ -63204,7 +63458,7 @@ static void sp_384_mul_d_6(sp_digit* r, const sp_digit* a,
         "str	x5, [%[r]]\n\t"
         "mov	x5, 0\n\t"
         "mov	x9, #8\n\t"
-        "1:\n\t"
+        "sp_384_mul_d_6_1:\n\t"
         "ldr	x8, [%[a], x9]\n\t"
         "mul	x6, %[b], x8\n\t"
         "umulh	x7, %[b], x8\n\t"
@@ -63217,13 +63471,23 @@ static void sp_384_mul_d_6(sp_digit* r, const sp_digit* a,
         "mov	x5, #0\n\t"
         "add	x9, x9, #8\n\t"
         "cmp	x9, 48\n\t"
-        "b.lt	1b\n\t"
+        "b.lt	sp_384_mul_d_6_1\n\t"
         "str	x3, [%[r], 48]\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
+}
 #else
+/* Mul a by digit b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision digit.
+ */
+static void sp_384_mul_d_6(sp_digit* r, const sp_digit* a,
+        sp_digit b)
+{
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldp	x8, x9, [%[a]]\n\t"
@@ -63275,8 +63539,8 @@ static void sp_384_mul_d_6(sp_digit* r, const sp_digit* a,
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
-#endif
 }
+#endif
 
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
@@ -63957,7 +64221,7 @@ static void sp_384_div2_mod_6(sp_digit* r, const sp_digit* a,
         "ldr     x13, [%[m], 32]\n\t"
         "ldr     x14, [%[m], 40]\n\t"
         "ands      x15, x3, 1\n\t"
-        "b.eq      1f\n\t"
+        "b.eq      sp_384_div2_mod_6_1\n\t"
         "adds      x3, x3, x9\n\t"
         "adcs    x4, x4, x10\n\t"
         "adcs    x5, x5, x11\n\t"
@@ -63965,7 +64229,7 @@ static void sp_384_div2_mod_6(sp_digit* r, const sp_digit* a,
         "adcs    x7, x7, x13\n\t"
         "adcs    x8, x8, x14\n\t"
         "cset      x15, cs\n\t"
-        "\n1:\n\t"
+        "\nsp_384_div2_mod_6_1:\n\t"
         "lsr       x3, x3, 1\n\t"
         "lsr     x10, x4, 1\n\t"
         "lsr     x11, x5, 1\n\t"
@@ -65969,7 +66233,7 @@ static sp_digit sp_1024_dbl_8(sp_digit* r, const sp_digit* a)
 
     __asm__ __volatile__ (
         "add	x11, %[a], 64\n\t"
-        "\n1:\n\t"
+        "\nsp_1024_dbl_8_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -65981,7 +66245,7 @@ static sp_digit sp_1024_dbl_8(sp_digit* r, const sp_digit* a)
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_1024_dbl_8_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "x3", "x4", "x5", "x6", "x11"
@@ -66069,11 +66333,11 @@ static void sp_1024_mul_16(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "mov	x6, 0\n\t"
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_1024_mul_16_1:\n\t"
         "subs	x3, x5, 120\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_1024_mul_16_2:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[b], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -66084,17 +66348,17 @@ static void sp_1024_mul_16(sp_digit* r, const sp_digit* a, const sp_digit* b)
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 128\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_1024_mul_16_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_1024_mul_16_2\n\t"
+        "\nsp_1024_mul_16_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 240\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_1024_mul_16_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a), [b] "r" (b)
@@ -66118,13 +66382,13 @@ static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
         "mov	x7, 0\n\t"
         "mov	x8, 0\n\t"
         "mov	x5, 0\n\t"
-        "\n1:\n\t"
+        "\nsp_1024_sqr_16_1:\n\t"
         "subs	x3, x5, 120\n\t"
         "csel	x3, xzr, x3, cc\n\t"
         "sub	x4, x5, x3\n\t"
-        "\n2:\n\t"
+        "\nsp_1024_sqr_16_2:\n\t"
         "cmp	x4, x3\n\t"
-        "b.eq	4f\n\t"
+        "b.eq	sp_1024_sqr_16_4\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "ldr	x11, [%[a], x4]\n\t"
         "mul	x9, x10, x11\n\t"
@@ -66135,31 +66399,31 @@ static void sp_1024_sqr_16(sp_digit* r, const sp_digit* a)
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "b.al	5f\n\t"
-        "\n4:\n\t"
+        "b.al	sp_1024_sqr_16_5\n\t"
+        "\nsp_1024_sqr_16_4:\n\t"
         "ldr	x10, [%[a], x3]\n\t"
         "mul	x9, x10, x10\n\t"
         "umulh	x10, x10, x10\n\t"
         "adds	x6, x6, x9\n\t"
         "adcs	x7, x7, x10\n\t"
         "adc	x8, x8, xzr\n\t"
-        "\n5:\n\t"
+        "\nsp_1024_sqr_16_5:\n\t"
         "add	x3, x3, #8\n\t"
         "sub	x4, x4, #8\n\t"
         "cmp	x3, 128\n\t"
-        "b.eq	3f\n\t"
+        "b.eq	sp_1024_sqr_16_3\n\t"
         "cmp	x3, x4\n\t"
-        "b.gt	3f\n\t"
+        "b.gt	sp_1024_sqr_16_3\n\t"
         "cmp	x3, x5\n\t"
-        "b.le	2b\n\t"
-        "\n3:\n\t"
+        "b.le	sp_1024_sqr_16_2\n\t"
+        "\nsp_1024_sqr_16_3:\n\t"
         "str	x6, [%[r], x5]\n\t"
         "mov	x6, x7\n\t"
         "mov	x7, x8\n\t"
         "mov	x8, #0\n\t"
         "add	x5, x5, #8\n\t"
         "cmp	x5, 240\n\t"
-        "b.le	1b\n\t"
+        "b.le	sp_1024_sqr_16_1\n\t"
         "str	x6, [%[r], x5]\n\t"
         :
         : [r] "r" (tmp), [a] "r" (a)
@@ -66243,13 +66507,13 @@ static const sp_point_1024 p1024_base = {
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_1024_sub_in_place_16(sp_digit* a, const sp_digit* b)
+SP_NOINLINE static sp_digit sp_1024_sub_in_place_16(sp_digit* a, const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x10, %[a], 128\n\t"
-        "\n1:\n\t"
+        "\nsp_1024_sub_in_place_16_1:\n\t"
         "subs	%[c], xzr, %[c]\n\t"
         "ldp	x2, x3, [%[a]]\n\t"
         "ldp	x4, x5, [%[a], #16]\n\t"
@@ -66263,7 +66527,7 @@ static sp_digit sp_1024_sub_in_place_16(sp_digit* a, const sp_digit* b)
         "stp	x4, x5, [%[a]], #16\n\t"
         "csetm	%[c], cc\n\t"
         "cmp	%[a], x10\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_1024_sub_in_place_16_1\n\t"
         : [c] "+r" (c), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
@@ -66273,6 +66537,41 @@ static sp_digit sp_1024_sub_in_place_16(sp_digit* a, const sp_digit* b)
 }
 
 #endif /* WOLFSSL_SP_SMALL */
+#ifdef WOLFSSL_SP_SMALL
+/* Conditionally subtract b from a using the mask m.
+ * m is -1 to subtract and 0 when not copying.
+ *
+ * r  A single precision number representing condition subtract result.
+ * a  A single precision number to subtract from.
+ * b  A single precision number to subtract.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_1024_cond_sub_16(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "sp_1024_cond_sub_16_1:\n\t"
+        "subs	%[c], xzr, %[c]\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "sbcs	x4, x4, x5\n\t"
+        "csetm	%[c], cc\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 128\n\t"
+        "b.lt	sp_1024_cond_sub_16_1\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+}
+#else
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -66284,29 +66583,6 @@ static sp_digit sp_1024_sub_in_place_16(sp_digit* a, const sp_digit* b)
 static sp_digit sp_1024_cond_sub_16(sp_digit* r, const sp_digit* a, const sp_digit* b,
         sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
-    sp_digit c = 0;
-
-    __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "subs	%[c], xzr, %[c]\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "sbcs	x4, x4, x5\n\t"
-        "csetm	%[c], cc\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 128\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
     __asm__ __volatile__ (
 
         "ldp	x5, x7, [%[b], 0]\n\t"
@@ -66372,8 +66648,8 @@ static sp_digit sp_1024_cond_sub_16(sp_digit* r, const sp_digit* a, const sp_dig
     );
 
     return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 #ifdef WOLFSSL_SP_SMALL
 /* Add b to a into r. (r = a + b)
@@ -66382,14 +66658,14 @@ static sp_digit sp_1024_cond_sub_16(sp_digit* r, const sp_digit* a, const sp_dig
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_1024_add_16(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_1024_add_16(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x11, %[a], 128\n\t"
-        "\n1:\n\t"
+        "\nsp_1024_add_16_1:\n\t"
         "adds	%[c], %[c], #-1\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -66403,7 +66679,7 @@ static sp_digit sp_1024_add_16(sp_digit* r, const sp_digit* a,
         "stp	x5, x6, [%[r]], #16\n\t"
         "cset	%[c], cs\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_1024_add_16_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
@@ -66413,16 +66689,16 @@ static sp_digit sp_1024_add_16(sp_digit* r, const sp_digit* a,
 }
 
 #endif /* WOLFSSL_SP_SMALL */
+#ifdef WOLFSSL_SP_SMALL
 /* Mul a by digit b into r. (r = a * b)
  *
  * r  A single precision integer.
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_1024_mul_d_16(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_1024_mul_d_16(sp_digit* r, const sp_digit* a,
         sp_digit b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldr	x8, [%[a]]\n\t"
@@ -66432,7 +66708,7 @@ static void sp_1024_mul_d_16(sp_digit* r, const sp_digit* a,
         "str	x5, [%[r]]\n\t"
         "mov	x5, 0\n\t"
         "mov	x9, #8\n\t"
-        "1:\n\t"
+        "sp_1024_mul_d_16_1:\n\t"
         "ldr	x8, [%[a], x9]\n\t"
         "mul	x6, %[b], x8\n\t"
         "umulh	x7, %[b], x8\n\t"
@@ -66445,13 +66721,23 @@ static void sp_1024_mul_d_16(sp_digit* r, const sp_digit* a,
         "mov	x5, #0\n\t"
         "add	x9, x9, #8\n\t"
         "cmp	x9, 128\n\t"
-        "b.lt	1b\n\t"
+        "b.lt	sp_1024_mul_d_16_1\n\t"
         "str	x3, [%[r], 128]\n\t"
         :
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
+}
 #else
+/* Mul a by digit b into r. (r = a * b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision digit.
+ */
+static void sp_1024_mul_d_16(sp_digit* r, const sp_digit* a,
+        sp_digit b)
+{
     __asm__ __volatile__ (
         "# A[0] * B\n\t"
         "ldp	x8, x9, [%[a]]\n\t"
@@ -66588,8 +66874,8 @@ static void sp_1024_mul_d_16(sp_digit* r, const sp_digit* a,
         : [r] "r" (r), [a] "r" (a), [b] "r" (b)
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9"
     );
-#endif
 }
+#endif
 
 /* Divide the double width number (d1|d0) by the dividend. (d1|d0 / div)
  *
@@ -66680,6 +66966,7 @@ static void sp_1024_mask_16(sp_digit* r, const sp_digit* a, sp_digit m)
 #endif
 }
 
+#ifdef WOLFSSL_SP_SMALL
 /* Compare a with b in constant time.
  *
  * a  A single precision integer.
@@ -66687,15 +66974,14 @@ static void sp_1024_mask_16(sp_digit* r, const sp_digit* a, sp_digit m)
  * return -ve, 0 or +ve if a is less than, equal to or greater than b
  * respectively.
  */
-static int64_t sp_1024_cmp_16(const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static int64_t sp_1024_cmp_16(const sp_digit* a, const sp_digit* b)
 {
-#ifdef WOLFSSL_SP_SMALL
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
         "mov	x4, -1\n\t"
         "mov	x5, 120\n\t"
-        "1:\n\t"
+        "sp_1024_cmp_16_1:\n\t"
         "ldr	x6, [%[a], x5]\n\t"
         "ldr	x7, [%[b], x5]\n\t"
         "and	x6, x6, x4\n\t"
@@ -66705,13 +66991,25 @@ static int64_t sp_1024_cmp_16(const sp_digit* a, const sp_digit* b)
         "csel	x2, x4, x2, lo\n\t"
         "csel	x4, x4, xzr, eq\n\t"
         "subs	x5, x5, #8\n\t"
-        "b.cs	1b\n\t"
+        "b.cs	sp_1024_cmp_16_1\n\t"
         "eor	%[a], x2, x4\n\t"
         : [a] "+r" (a)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
+
+    return (int64_t)a;
+}
 #else
+/* Compare a with b in constant time.
+ *
+ * a  A single precision integer.
+ * b  A single precision integer.
+ * return -ve, 0 or +ve if a is less than, equal to or greater than b
+ * respectively.
+ */
+static int64_t sp_1024_cmp_16(const sp_digit* a, const sp_digit* b)
+{
     __asm__ __volatile__ (
         "mov	x2, -1\n\t"
         "mov	x3, 1\n\t"
@@ -66833,10 +67131,10 @@ static int64_t sp_1024_cmp_16(const sp_digit* a, const sp_digit* b)
         : [b] "r" (b)
         : "x2", "x3", "x4", "x5", "x6", "x7", "x8"
     );
-#endif
 
     return (int64_t)a;
 }
+#endif
 
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
@@ -67266,7 +67564,7 @@ SP_NOINLINE static void sp_1024_mont_reduce_16(sp_digit* a, const sp_digit* m,
         "# i = 16\n\t"
         "mov	x4, 16\n\t"
         "ldp	x12, x13, [%[a], 0]\n\t"
-        "\n1:\n\t"
+        "\nsp_1024_mont_reduce_16_1:\n\t"
         "# mu = a[i] * mp\n\t"
         "mul	x9, %[mp], x12\n\t"
         "# a[i+0] += m[0] * mu\n\t"
@@ -67414,7 +67712,7 @@ SP_NOINLINE static void sp_1024_mont_reduce_16(sp_digit* a, const sp_digit* m,
         "adc	x3, x3, xzr\n\t"
         "subs	x4, x4, 1\n\t"
         "add	%[a], %[a], 8\n\t"
-        "bne	1b\n\t"
+        "bne	sp_1024_mont_reduce_16_1\n\t"
         "# x12 and x13 hold a[0] and a[1]\n\t"
         "# Create mask\n\t"
         "ldr       x9, [%[m], 120]\n\t"
@@ -68071,6 +68369,41 @@ static void sp_1024_mont_sub_16(sp_digit* r, const sp_digit* a, const sp_digit* 
     );
 }
 
+#ifdef WOLFSSL_SP_SMALL
+/* Conditionally add a and b using the mask m.
+ * m is -1 to add and 0 when not.
+ *
+ * r  A single precision number representing conditional add result.
+ * a  A single precision number to add with.
+ * b  A single precision number to add.
+ * m  Mask value to apply.
+ */
+SP_NOINLINE static sp_digit sp_1024_cond_add_16(sp_digit* r, const sp_digit* a, const sp_digit* b,
+        sp_digit m)
+{
+    sp_digit c = 0;
+
+    __asm__ __volatile__ (
+        "mov	x8, #0\n\t"
+        "sp_1024_cond_add_16_1:\n\t"
+        "adds	%[c], %[c], #-1\n\t"
+        "ldr	x4, [%[a], x8]\n\t"
+        "ldr	x5, [%[b], x8]\n\t"
+        "and	x5, x5, %[m]\n\t"
+        "adcs	x4, x4, x5\n\t"
+        "cset	%[c], cs\n\t"
+        "str	x4, [%[r], x8]\n\t"
+        "add	x8, x8, #8\n\t"
+        "cmp	x8, 128\n\t"
+        "b.lt	sp_1024_cond_add_16_1\n\t"
+        : [c] "+r" (c)
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
+        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
+    );
+
+    return c;
+}
+#else
 /* Conditionally add a and b using the mask m.
  * m is -1 to add and 0 when not.
  *
@@ -68082,29 +68415,9 @@ static void sp_1024_mont_sub_16(sp_digit* r, const sp_digit* a, const sp_digit* 
 static sp_digit sp_1024_cond_add_16(sp_digit* r, const sp_digit* a, const sp_digit* b,
         sp_digit m)
 {
-#ifdef WOLFSSL_SP_SMALL
     sp_digit c = 0;
 
     __asm__ __volatile__ (
-        "mov	x8, #0\n\t"
-        "1:\n\t"
-        "adds	%[c], %[c], #-1\n\t"
-        "ldr	x4, [%[a], x8]\n\t"
-        "ldr	x5, [%[b], x8]\n\t"
-        "and	x5, x5, %[m]\n\t"
-        "adcs	x4, x4, x5\n\t"
-        "cset	%[c], cs\n\t"
-        "str	x4, [%[r], x8]\n\t"
-        "add	x8, x8, #8\n\t"
-        "cmp	x8, 128\n\t"
-        "b.lt	1b\n\t"
-        : [c] "+r" (c)
-        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [m] "r" (m)
-        : "memory", "x4", "x6", "x5", "x7", "x8", "x9", "x10", "x11", "x12"
-    );
-
-    return c;
-#else
     __asm__ __volatile__ (
 
         "ldp	x5, x7, [%[b], 0]\n\t"
@@ -68170,8 +68483,8 @@ static sp_digit sp_1024_cond_add_16(sp_digit* r, const sp_digit* a, const sp_dig
     );
 
     return (sp_digit)r;
-#endif /* WOLFSSL_SP_SMALL */
 }
+#endif /* WOLFSSL_SP_SMALL */
 
 static void sp_1024_rshift1_16(sp_digit* r, sp_digit* a)
 {
@@ -68551,14 +68864,14 @@ static void sp_1024_proj_point_dbl_n_16(sp_point_1024* p, int n,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_1024_sub_16(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_1024_sub_16(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
 
     __asm__ __volatile__ (
         "add	x11, %[a], 128\n\t"
-        "\n1:\n\t"
+        "\nsp_1024_sub_16_1:\n\t"
         "subs	%[c], xzr, %[c]\n\t"
         "ldp	x3, x4, [%[a]], #16\n\t"
         "ldp	x5, x6, [%[a]], #16\n\t"
@@ -68572,7 +68885,7 @@ static sp_digit sp_1024_sub_16(sp_digit* r, const sp_digit* a,
         "stp	x5, x6, [%[r]], #16\n\t"
         "csetm	%[c], cc\n\t"
         "cmp	%[a], x11\n\t"
-        "b.ne	1b\n\t"
+        "b.ne	sp_1024_sub_16_1\n\t"
         : [c] "+r" (c), [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11"
