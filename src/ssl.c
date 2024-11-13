@@ -14554,11 +14554,11 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
     if (IsAtLeastTLSv1_3(ssl->version)) {
         printf("named group: %u\n", ssl->namedGroup);
         #ifndef WOLFSSL_NO_ML_KEM
-        print("HAVE ML_KEM");
+        printf("HAVE ML_KEM\n");
         #endif
 
         #ifdef WOLFSSL_WC_ML_KEM_1024
-        print("HAVE WC_ML_KEM_1024");
+        printf("HAVE WC_ML_KEM_1024\n");
         #endif
 
 
