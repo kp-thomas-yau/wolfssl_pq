@@ -14561,6 +14561,9 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
         printf("HAVE WC_ML_KEM_1024\n");
         #endif
 
+        #ifdef WOLFSSL_NO_ML_KEM_1024
+        printf("WOLFSSL_NO_ML_KEM_1024\n"); 
+        #endif
 
         switch (ssl->namedGroup) {
 #ifndef WOLFSSL_NO_ML_KEM
