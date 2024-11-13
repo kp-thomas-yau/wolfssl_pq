@@ -8108,7 +8108,10 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     findEccPqc(&ecc_group, &oqs_group, kse->group);
+    printf("kyber named group: %u\n", kse->group);
+     printf("kyber pqc: %d\n", oqs_group);
     ret = kyber_id2type(oqs_group, &type);
+    printf("kyber type: %d\n", type);
     if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
         WOLFSSL_MSG("Invalid Kyber algorithm specified.");
         ret = BAD_FUNC_ARG;

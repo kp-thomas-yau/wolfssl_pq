@@ -14552,6 +14552,16 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
     /* Check for post-quantum groups. Return now because we do not want the ECC
      * check to override this result in the case of a hybrid. */
     if (IsAtLeastTLSv1_3(ssl->version)) {
+        printf("named group: %u\n", ssl->namedGroup);
+        #ifndef WOLFSSL_NO_ML_KEM
+        print("HAVE ML_KEM");
+        #endif
+
+        #ifdef WOLFSSL_WC_ML_KEM_1024
+        print("HAVE WC_ML_KEM_1024");
+        #endif
+
+
         switch (ssl->namedGroup) {
 #ifndef WOLFSSL_NO_ML_KEM
 #ifdef HAVE_LIBOQS
